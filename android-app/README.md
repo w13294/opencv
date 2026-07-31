@@ -1,128 +1,73 @@
-# 靶标追踪 Android App
+# 靶标位移追踪 App (Android)
 
-基于桌面版 Python 项目完整移植的 Android 靶标追踪 (四象限) 应用。
+基于 OpenCV 四象限靶标检测 + 卡尔曼滤波的 Android 实时位移测量应用。
+算法由桌面端 Python 版本完整翻译为 Kotlin + Jetpack Compose。
 
 ## 技术栈
 
-- **Kotlin** + **Jetpack Compose** (Material3)
-- **OpenCV Android SDK 4.9** (图像处理 + PnP 位姿估计)
-- **CameraX** (相机预览 + ImageAnalysis)
-- **卡尔曼滤波** (自实现, 三轴独立)
+- **Kotlin + Jetpack Compose** (Material 3 暗色界面)
+- **CameraX** 相机采集 (后摄, 1280×720)
+- **OpenCV 4.9.0** (Maven Central 官方 AAR, 无需手动下载 SDK)
+- **卡尔曼滤波** 三轴位移平滑 + 自适应死区 + 异常恢复
 
 ## 功能
 
-- 四象限双黑靶标实时检测
-- 6DOF 位姿估计 (solvePnP + pinhole 回退)
-- 三轴卡尔曼滤波 + 滑动平均 + 自适应死区
-- 异常值检测 + 连续异常自动恢复
-- XY 轨迹可视化
-- 多靶标 ID 分配 (按像素面积排序)
-- 可设置零位/归零
-
-## 构建步骤
-
-### 1. 下载 OpenCV Android SDK
-
-```bash
-# 下载 OpenCV 4.9.0 Android SDK
-wget https://github.com/opencv/opencv/releases/download/4.9.0/opencv-4.9.0-android-sdk.zip
-unzip opencv-4.9.0-android-sdk.zip
-```
-
-### 2. 导入 OpenCV 模块
-
-将解压后的 `OpenCV-android-sdk/sdk/` 目录内容复制到本项目的 `opencv/` 目录:
-
-**Windows:**
-```powershell
-xcopy /E OpenCV-android-sdk\sdk\* android-app\opencv\
-```
-
-**macOS/Linux:**
-```bash
-cp -r OpenCV-android-sdk/sdk/* android-app/opencv/
-```
-
-然后修改 `opencv/build.gradle`，或者直接在 Android Studio 中通过 `File > New > Import Module` 导入。
-
-**简化方案**: 在 `build.gradle.kts` 中直接引用 OpenCV 的 `.aar` 或 `.so` 文件。
-
-### 3. 用 Android Studio 打开
-
-```bash
-# Android Studio → File → Open → 选择 android-app/ 目录
-```
-
-### 4. 同步 Gradle + 运行
-
-- Android Studio 会自动提示 Sync Gradle
-- 选择目标设备 (需 Android 8.0+)
-- 点击 Run
-
-### 最低要求
-
-| 项目 | 版本 |
-|------|------|
-| Android SDK | 26+ (Android 8.0) |
-| Gradle | 8.5 |
-| Kotlin | 1.9.22 |
-| Compose BOM | 2024.01.00 |
-| OpenCV | 4.9.0 |
+- 四象限同心椭圆靶标检测 (递归层级遍历 + 对角角度验证)
+- `solvePnP` 6DOF 位姿求解 (失败时 pinhole 回退)
+- 按像素面积自动分配靶标 ID
+- XYZ 三轴位移 + 二维位移实时显示
+- XY 轨迹实时绘制
+- 归零 / 重置
+- 未检测到靶标时中文提示
 
 ## 项目结构
 
 ```
 android-app/
-├── build.gradle.kts              # 根构建文件
-├── settings.gradle.kts            # 项目设置 (含 :opencv 模块)
-├── gradle/
-│   └── wrapper/
-│       └── gradle-wrapper.properties
-├── opencv/                        # OpenCV 模块 (需手动导入)
-│   ├── build.gradle
-│   └── AndroidManifest.xml
+├── build.gradle.kts            # 根构建 (AGP 8.2.2 + Kotlin 1.9.22)
+├── settings.gradle.kts         # 模块声明
+├── .github/workflows/build.yml # 云端自动构建 APK
 └── app/
-    ├── build.gradle.kts           # App 构建文件
-    └── src/main/
-        ├── AndroidManifest.xml
-        ├── java/com/example/targettracker/
-        │   ├── MainActivity.kt           # 入口
-        │   ├── TargetTrackerState.kt     # 全局状态
-        │   ├── config/
-        │   │   ├── Config.kt             # 全局配置
-        │   │   └── CalibrationData.kt    # 标定数据
-        │   ├── camera/
-        │   │   └── CameraAnalyzer.kt     # CameraX+OpenCV 桥接
-        │   ├── detector/
-        │   │   ├── TargetDetector.kt     # 四象限检测器
-        │   │   └── DetectionResult.kt    # 检测结果
-        │   ├── engine/
-        │   │   ├── DisplacementEngine.kt # 位移测量引擎
-        │   │   ├── SimpleKalmanFilter.kt # 卡尔曼滤波器
-        │   │   └── DisplacementResult.kt # 位移结果
-        │   └── ui/
-        │       ├── MainScreen.kt         # 主画面 (Compose)
-        │       ├── HUDOverlay.kt         # HUD + 轨迹图
-        │       ├── ControlBar.kt         # 底部控制栏
-        │       └── theme/
-        │           ├── Color.kt          # 配色方案
-        │           ├── Type.kt           # 字体排印
-        │           └── Theme.kt          # Material3 主题
-        └── res/
-            └── values/
-                ├── strings.xml
-                ├── colors.xml
-                └── themes.xml
+    └── src/main/java/.../targettracker/
+        ├── MainActivity.kt          # 入口: OpenCV 初始化 + 权限 + 相机绑定
+        ├── config/                  # Config.kt + CalibrationData.kt
+        ├── camera/CameraAnalyzer.kt # YUV → OpenCV Mat 转换
+        ├── detector/                # 四象限检测 (Kotlin)
+        ├── engine/                  # 卡尔曼滤波 + 滑动平均
+        └── ui/                      # Compose UI
 ```
 
-## 与 Python 版的对应关系
+## 云端构建 (GitHub Actions) — 推荐
 
-| Python | Android (Kotlin) |
-|--------|------------------|
-| `src/config.py` | `config/Config.kt` |
-| `src/detector.py` | `detector/TargetDetector.kt` |
-| `src/measure.py` | `engine/DisplacementEngine.kt` |
-| `src/calibration.py` | 待实现 (标定接口预留) |
-| `src/gui.py` | `ui/MainScreen.kt` |
-| `src/visualizer.py` | `ui/HUDOverlay.kt` |
-| `main.py` | `MainActivity.kt` |
+本项目已配置 GitHub Actions，推送即可自动出包，**无需本机安装 Android 环境**。
+
+### 调试版 (Debug APK)
+
+1. 将 `android-app/` 推送到 GitHub 仓库的 `main` 分支
+2. Actions 自动运行 `Build APK` 工作流
+3. 在 Actions 页面下载 `app-debug` 产物 (APK)
+
+### 发布版 (Release APK, 签名)
+
+1. 在仓库 **Settings → Secrets → Actions** 添加:
+   - `KEYSTORE_BASE64` : 签名 keystore 的 base64 (`base64 -w0 your.keystore.jks`)
+   - `KEYSTORE_PASSWORD`
+   - `KEY_ALIAS`
+   - `KEY_PASSWORD`
+2. 打 tag 并推送: `git tag v1.0.0 && git push origin v1.0.0`
+3. 自动创建 GitHub Release 并附上签名 APK
+
+### 本机构建 (可选)
+
+需要 JDK 17 + Android SDK (platform-34, build-tools 34.0.0):
+
+```bash
+cd android-app
+./gradlew assembleDebug
+# 产物: app/build/outputs/apk/debug/app-debug.apk
+```
+
+## 安装
+
+手机开启「未知来源」安装，传输 APK 后安装即可。需要 Android 8.0+ (minSdk 26)。
+首次运行授予相机权限。

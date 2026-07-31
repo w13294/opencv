@@ -16,4 +16,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "TargetTracker"
 include(":app")
-include(":opencv")

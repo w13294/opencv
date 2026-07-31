@@ -66,8 +66,8 @@ dependencies {
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
-    // OpenCV
-    implementation(project(":opencv"))
+    // OpenCV (官方 Maven Central AAR, 无需手动下载 SDK)
+    implementation("org.opencv:opencv:4.9.0")
 
     // Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
