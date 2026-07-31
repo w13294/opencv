@@ -40,8 +40,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from src.config import TARGET, MEASURE, DISPLAY, LOGGING, CAMERA
 from src.calibration import CameraCalibrator
-from src.detector import TargetDetector
-from src.measure import DisplacementEngine
+from src.detector import TargetDetector, DetectionResult
+from src.measure import MultiTargetEngine, DisplacementResult
 from src.visualizer import RealTimeVisualizer
 
 
@@ -79,7 +79,7 @@ class TargetMeasurementSystem:
         self.detector = TargetDetector(TARGET)
         self.detector.set_mode(mode)
 
-        self.engine = DisplacementEngine(MEASURE)
+        self.engine = MultiTargetEngine(MEASURE)
 
         self.visualizer = RealTimeVisualizer(DISPLAY)
 
@@ -138,27 +138,24 @@ class TargetMeasurementSystem:
             timestamp = time.time()
 
             # --- 步骤1: 检测靶标 ---
-            detect_result = self.detector.detect(
+            detect_results = self.detector.detect(
                 frame, self.camera_matrix, self.dist_coeffs)
 
             # --- 步骤2: 计算位移 ---
-            if detect_result.success and detect_result.tvec is not None:
-                disp_result = self.engine.measure(
-                    detect_result.tvec,
-                    detect_result.rvec,
-                    timestamp,
-                    detect_result.quality,
-                )
-            else:
-                # 未检测到: 生成空结果
-                from src.measure import DisplacementResult
-                disp_result = DisplacementResult(
-                    timestamp=timestamp,
-                    detection_quality=0.0,
-                )
+            disp_results = self.engine.measure_all(
+                detect_results, timestamp)
+
+            # --- 提取主靶标结果用于单靶标显示 ---
+            detect_result = DetectionResult(success=False)
+            disp_result = DisplacementResult(timestamp=timestamp)
+            if disp_results:
+                primary_id = sorted(disp_results.keys())[0]
+                disp_result = disp_results[primary_id]
+                detect_result = detect_results.get(primary_id, DetectionResult(success=False))
+                disp_result.target_id = primary_id
 
             # --- 步骤3: 可视化 ---
-            stats = self.engine.get_stats()
+            stats = self.engine.get_global_stats() if hasattr(self.engine, 'get_global_stats') else {}
             display_frame = self.visualizer.render(
                 frame, detect_result, disp_result, self.frame_num, stats)
 
@@ -205,14 +202,14 @@ class TargetMeasurementSystem:
 
     def _print_status(self, disp, stats):
         """打印运行状态"""
-        status = "零" if stats["zeroed"] else "归零中"
+        active = stats.get("active_targets", 0)
         mode_str = f"[{self.detector.mode}]"
-        disp_str = f"X={disp.x:+7.2f} Y={disp.y:+7.2f} Z={disp.z:+7.2f} mm"
-        total_str = f"2D={disp.displacement_2d:.3f}mm"
-        qual_str = f"Q={disp.detection_quality:.2f}"
+        disp_str = f"X={disp.x:+7.2f} Y={disp.y:+7.2f} Z={disp.z:+7.2f} mm" if hasattr(disp, 'x') else "无数据"
+        total_str = f"2D={disp.displacement_2d:.3f}mm" if hasattr(disp, 'displacement_2d') else ""
+        qual_str = f"Q={disp.detection_quality:.2f}" if hasattr(disp, 'detection_quality') else ""
 
         log_icon = "[L]" if self.logging_active else "[ ]"
-        print(f"  {mode_str} {status} | {disp_str} | {total_str} "
+        print(f"  {mode_str} 靶标x{active} | {disp_str} | {total_str} "
               f"| {qual_str} {log_icon}")
 
     def _cleanup(self):
@@ -225,9 +222,9 @@ class TargetMeasurementSystem:
 
         print(f"\n{'='*60}")
         print(f"  测量结束")
-        stats = self.engine.get_stats()
-        print(f"  总帧数: {stats['frame_count']}")
-        print(f"  异常值: {stats['outlier_count']} ({stats['outlier_rate']:.1f}%)")
+        stats = self.engine.get_global_stats() if hasattr(self.engine, 'get_global_stats') else {}
+        print(f"  总帧数: {stats.get('total_frames', 0)}")
+        print(f"  活跃靶标: {stats.get('active_targets', 0)}")
         print(f"{'='*60}")
 
 

@@ -174,7 +174,7 @@ class RealTimeVisualizer:
                 cv2.circle(display, (cx, cy), 6, (0, 255, 255), -1)
                 cv2.circle(display, (cx, cy), 8, (0, 255, 255), 2)
         else:
-            cv2.putText(display, "TARGET NOT FOUND",
+            cv2.putText(display, "未检测到靶标",
                         (w // 2 - 120, h // 2), self.font, 1.2, (0, 0, 255), 3)
 
         # --- 绘制位移轨迹 ---
@@ -214,12 +214,12 @@ class RealTimeVisualizer:
                         self.font_scale, color, 1, cv2.LINE_AA)
 
         # 归零状态
-        status = "READY" if stats["zeroed"] else "ZEROING..."
+        status = "就绪" if stats["zeroed"] else "归零中..."
         status_color = (0, 255, 0) if stats["zeroed"] else (0, 200, 255)
-        put(f"STATUS: {status}", 0, status_color)
+        put(f"状态: {status}", 0, status_color)
 
         # 位移数据
-        put(f"FPS: {fps:.1f}  Frame: {frame_num}", 1, (180, 180, 180))
+        put(f"帧率: {fps:.1f}  帧: {frame_num}", 1, (180, 180, 180))
         put("", 2)
         put(f"X (水平): {disp.x:+8.3f} mm", 3, (0, 255, 0))
         put(f"Y (垂直): {disp.y:+8.3f} mm", 4, (0, 255, 0))
@@ -272,7 +272,7 @@ class RealTimeVisualizer:
                       (100, 100, 100), 1)
 
         # 标题
-        cv2.putText(display, "Trajectory (X-Y)", (x1 + 5, y1 + 20),
+        cv2.putText(display, "X-Y 轨迹", (x1 + 5, y1 + 20),
                     self.font, 0.45, (180, 180, 180), 1, cv2.LINE_AA)
 
         # 中心点
@@ -342,15 +342,15 @@ class OfflineAnalyzer:
         disp_2d, disp_3d = data[:, 4], data[:, 5]
 
         fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-        fig.suptitle("Target Displacement Analysis", fontsize=14)
+        fig.suptitle("靶标位移分析", fontsize=14)
 
         # X/Y/Z vs 时间
         ax = axes[0, 0]
         ax.plot(time_sec, x, 'r-', label='X', linewidth=0.5)
         ax.plot(time_sec, y, 'g-', label='Y', linewidth=0.5)
         ax.plot(time_sec, z, 'b-', label='Z', linewidth=0.5)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Displacement (mm)')
+        ax.set_xlabel('时间 (s)')
+        ax.set_ylabel('位移 (mm)')
         ax.legend()
         ax.grid(True, alpha=0.3)
 
@@ -358,16 +358,16 @@ class OfflineAnalyzer:
         ax = axes[0, 1]
         ax.plot(time_sec, disp_2d, 'c-', label='2D', linewidth=0.5)
         ax.plot(time_sec, disp_3d, 'm-', label='3D', linewidth=0.5)
-        ax.set_xlabel('Time (s)')
-        ax.set_ylabel('Total Displacement (mm)')
+        ax.set_xlabel('时间 (s)')
+        ax.set_ylabel('总位移 (mm)')
         ax.legend()
         ax.grid(True, alpha=0.3)
 
         # X-Y 轨迹
         ax = axes[1, 0]
         ax.plot(x, y, 'b-', linewidth=0.3)
-        ax.plot(x[0], y[0], 'go', label='Start')
-        ax.plot(x[-1], y[-1], 'ro', label='End')
+        ax.plot(x[0], y[0], 'go', label='起点')
+        ax.plot(x[-1], y[-1], 'ro', label='终点')
         ax.set_xlabel('X (mm)')
         ax.set_ylabel('Y (mm)')
         ax.axis('equal')
@@ -378,8 +378,8 @@ class OfflineAnalyzer:
         ax = axes[1, 1]
         ax.hist(x, bins=50, alpha=0.5, color='r', label='X')
         ax.hist(y, bins=50, alpha=0.5, color='g', label='Y')
-        ax.set_xlabel('Displacement (mm)')
-        ax.set_ylabel('Count')
+        ax.set_xlabel('位移 (mm)')
+        ax.set_ylabel('计数')
         ax.legend()
 
         plt.tight_layout()

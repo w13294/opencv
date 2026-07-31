@@ -1539,7 +1539,7 @@ class MainWindow(QMainWindow):
 
         # ── 未标定警告 ──
         if self.thread and not getattr(self.thread, 'calibrated', True):
-            warn = "WARNING: Camera NOT calibrated"
+            warn = "警告: 相机未标定"
             cv2.putText(output, warn, (w // 2 - 180, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 80), 4, cv2.LINE_AA)
             cv2.putText(output, warn, (w // 2 - 180, 30),
@@ -1558,7 +1558,7 @@ class MainWindow(QMainWindow):
             (f"X: {disp_result.x:+7.3f} mm", (60, 245, 245)),
             (f"Y: {disp_result.y:+7.3f} mm", (100, 220, 100)),
             (f"Z: {disp_result.z:+7.3f} mm", (70, 170, 255)),
-            (f"2D: {disp_result.displacement_2d:.3f} mm", (220, 210, 80)),
+            (f"二维: {disp_result.displacement_2d:.3f} mm", (220, 210, 80)),
         ]
         for i, (text, color) in enumerate(texts):
             y = 42 + i * 24
@@ -1569,7 +1569,7 @@ class MainWindow(QMainWindow):
 
         if not any_success:
             # 未检测到提示
-            msg = "TARGET NOT FOUND"
+            msg = "未检测到靶标"
             (tw, _), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)
             msg_x = (w - tw) // 2
             msg_y = h // 2
