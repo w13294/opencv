@@ -20,6 +20,7 @@ import com.example.targettracker.config.Config
 import com.example.targettracker.detector.TargetDetector
 import com.example.targettracker.engine.DisplacementEngine
 import com.example.targettracker.ui.MainScreen
+import com.example.targettracker.ui.ErrorScreen
 import com.example.targettracker.ui.theme.TargetTrackerTheme
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.Mat
@@ -67,52 +68,85 @@ class MainActivity : ComponentActivity() {
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        // 初始化 OpenCV (官方 AAR 自带 native 库, initDebug 即可)
         try {
-            if (!OpenCVLoader.initDebug()) {
-                Log.e(TAG, "OpenCV initDebug returned false")
-                Toast.makeText(this, "OpenCV 初始化失败", Toast.LENGTH_LONG).show()
+            super.onCreate(savedInstanceState)
+
+            // 初始化 OpenCV (官方 AAR 自带 native 库, 4.11.0 使用 initLocal)
+            var opencvOk = false
+            try {
+                opencvOk = OpenCVLoader.initLocal()
+                if (!opencvOk) {
+                    Log.e(TAG, "OpenCV initLocal returned false")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "OpenCV init failed: ${e.message}")
+                writeCrash("onCreate-OpenCV", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "OpenCV init failed: ${e.message}")
-            Toast.makeText(this, "OpenCV 初始化失败", Toast.LENGTH_LONG).show()
-        }
 
-        // 初始化标定 Mat
-        updateCalibrationMats()
+            // 初始化标定 Mat
+            updateCalibrationMats()
 
-        setContent {
-            TargetTrackerTheme {
-                MainScreen(
-                    state = state,
-                    onCameraReady = { pv ->
-                        previewView = pv
-                        startCameraWithPreview(pv)
-                    },
-                    onZeroReset = {
-                        state.zeroed = !state.zeroed
-                        if (state.zeroed) engine.setZero()
-                        else engine.reset()
-                    },
-                    onCalibrate = {
-                        Toast.makeText(this, "标定功能: 请使用桌面版或导入标定文件", Toast.LENGTH_SHORT).show()
-                    },
-                    onReset = {
-                        engine.reset()
-                        state.zeroed = false
+            setContent {
+                TargetTrackerTheme {
+                    if (opencvOk) {
+                        MainScreen(
+                            state = state,
+                            onCameraReady = { pv ->
+                                previewView = pv
+                                startCameraWithPreview(pv)
+                            },
+                            onZeroReset = {
+                                state.zeroed = !state.zeroed
+                                if (state.zeroed) engine.setZero()
+                                else engine.reset()
+                            },
+                            onCalibrate = {
+                                Toast.makeText(this@MainActivity, "标定功能: 请使用桌面版或导入标定文件", Toast.LENGTH_SHORT).show()
+                            },
+                            onReset = {
+                                engine.reset()
+                                state.zeroed = false
+                            }
+                        )
+                    } else {
+                        // OpenCV 加载失败: 显示错误界面, 不再启动相机
+                        ErrorScreen("OpenCV 初始化失败，应用无法运行。\n请查看 crash.log 获取详情。")
                     }
-                )
+                }
             }
-        }
 
-        // 请求相机权限
-        if (checkCameraPermission()) {
-            // 权限已有, 等 Compose 就绪后会调用 onCameraReady
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+            // 请求相机权限
+            if (opencvOk) {
+                if (checkCameraPermission()) {
+                    // 权限已有, 等 Compose 就绪后会调用 onCameraReady
+                } else {
+                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+        } catch (e: Throwable) {
+            Log.e(TAG, "onCreate crashed", e)
+            writeCrash("onCreate", e)
+            throw e
         }
+    }
+
+    private fun writeCrash(tag: String, t: Throwable) {
+        try {
+            val dir = getExternalFilesDir(null) ?: filesDir
+            val f = java.io.File(dir, "crash.log")
+            java.io.FileWriter(f, true).use { w ->
+                w.appendLine("==== $tag @ ${System.currentTimeMillis()} ====")
+                w.appendLine((t.javaClass.name) + ": " + (t.message ?: "no msg"))
+                t.stackTrace.forEach { w.appendLine("    at $it") }
+                var c = t.cause
+                while (c != null) {
+                    w.appendLine("Caused: " + c.javaClass.name + ": " + (c.message ?: ""))
+                    c.stackTrace.forEach { w.appendLine("    at $it") }
+                    c = c.cause
+                }
+                w.appendLine("====================")
+            }
+        } catch (_: Exception) { }
     }
 
     private fun checkCameraPermission(): Boolean =

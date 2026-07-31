@@ -7,12 +7,15 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.example.targettracker.TargetTrackerState
 import com.example.targettracker.ui.theme.*
@@ -83,5 +86,33 @@ fun MainScreen(
             onReset = onReset,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
+}
+
+/**
+ * OpenCV 加载失败时的错误界面
+ */
+@Composable
+fun ErrorScreen(message: String) {
+    Box(
+        modifier = Modifier.fillMaxSize().background(DarkBackground),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Text(
+                "应用无法启动",
+                style = MaterialTheme.typography.titleLarge,
+                color = HudRed
+            )
+            Spacer(Modifier.height(12.dp))
+            Text(
+                message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = HudWhite
+            )
+        }
     }
 }
