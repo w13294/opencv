@@ -215,29 +215,25 @@ def main():
     parser.add_argument("--dpi", type=int, default=300, help="打印分辨率")
     parser.add_argument("--output", type=str, default="target.png",
                         help="输出文件路径")
-
+    parser.add_argument("--save", action="store_true", help="是否自动保存到 output 目录")
+    
     args = parser.parse_args()
 
-    print(f"\n  生成靶标: {args.type}")
-    print(f"  尺寸: {args.size}mm, DPI: {args.dpi}")
-
     if args.type == "aruco":
-        img = generate_aruco_marker(
-            args.id, args.dict, args.size, args.dpi)
+        img = generate_aruco_marker(args.id, args.dict, args.size, args.dpi)
+        title = f"ArUco_{args.id}_{args.size}mm"
     elif args.type == "chessboard":
-        img = generate_chessboard(
-            args.cols, args.rows, args.size, args.dpi)
+        img = generate_chessboard(args.cols, args.rows, args.size, args.dpi)
+        title = f"Chessboard_{args.cols}x{args.rows}_{args.size}mm"
     elif args.type == "circles":
-        img = generate_circle_grid(
-            args.cols, args.rows, args.size, args.dpi)
+        img = generate_circle_grid(args.cols, args.rows, args.size, args.dpi)
+        title = f"CircleGrid_{args.cols}x{args.rows}_{args.size}mm"
     elif args.type == "quadrant":
-        img = generate_quadrant(
-            args.size, args.dpi)
+        img = generate_quadrant(args.size, args.dpi)
 
     os.makedirs(os.path.dirname(args.output) if os.path.dirname(args.output) else ".", exist_ok=True)
     cv2.imwrite(args.output, img)
     print(f"  已生成: {args.output} ({img.shape[1]}x{img.shape[0]} px)")
-    print(f"  打印尺寸: {img.shape[1]/args.dpi:.1f}\" x {img.shape[0]/args.dpi:.1f}\"")
 
     # 同时生成一个带比例尺的预览版
     preview = img.copy()
@@ -263,3 +259,80 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def generate_multi_quadrant(sizes_mm: list, dpi: int = 300, paper_width_mm: float = 210.0, paper_height_mm: float = 297.0):
+    """
+    在一张指定尺寸的画布上生成多个四象限靶标 (流式布局)
+    """
+    import cv2
+    import numpy as np
+    
+    # 纸张尺寸转换为像素
+    paper_w_px = int(paper_width_mm / 25.4 * dpi)
+    paper_h_px = int(paper_height_mm / 25.4 * dpi)
+    
+    # 全白画布
+    board = np.ones((paper_h_px, paper_w_px, 3), dtype=np.uint8) * 255
+    
+    margin_px = int(0.5 * dpi)
+    current_x = margin_px
+    current_y = margin_px
+    row_height = 0
+    
+    # 信息栏高度
+    info_h = int(0.6 * dpi)
+    draw_area_h = paper_h_px - info_h - margin_px
+
+    # 从大到小排序，优化排版
+    sorted_sizes = sorted(sizes_mm, reverse=True)
+    placed_targets = []
+    
+    for size_mm in sorted_sizes:
+        size_px = int(size_mm / 25.4 * dpi)
+        # 靶标占用的边长加上一点间隙 (0.2英寸)
+        box_size = size_px + int(0.2 * dpi)
+        
+        # 换行检测
+        if current_x + box_size > paper_w_px - margin_px:
+            current_x = margin_px
+            current_y += row_height
+            row_height = 0
+            
+        # 超出页面高度检测
+        if current_y + box_size > draw_area_h:
+            print(f"警告: 画布空间不足，靶标 {size_mm}mm 无法放入。")
+            continue
+            
+        # 绘制靶标
+        center_x = current_x + box_size // 2
+        center_y = current_y + box_size // 2
+        
+        ring_radius = size_px // 2
+        inner_radius = int(ring_radius * 0.8)
+        
+        cv2.circle(board, (center_x, center_y), ring_radius, (0, 0, 0), -1)
+        cv2.circle(board, (center_x, center_y), inner_radius, (255, 255, 255), -1)
+        
+        cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 90, 180, (0, 0, 0), -1)
+        cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 270, 360, (0, 0, 0), -1)
+        
+        # 记录已放置靶标
+        placed_targets.append(size_mm)
+        
+        current_x += box_size
+        row_height = max(row_height, box_size)
+        
+    # 在底部绘制信息栏
+    info_bar_y = paper_h_px - info_h
+    cv2.line(board, (margin_px, info_bar_y), (paper_w_px - margin_px, info_bar_y), (0,0,0), 2)
+    
+    sizes_str = ", ".join([f"{s}mm" for s in placed_targets])
+    cv2.putText(board, f"Multi-Quadrant Target Sheet ({paper_width_mm}x{paper_height_mm}mm)",
+                (margin_px, info_bar_y + int(0.2*dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                0.6, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(board, f"Sizes: {sizes_str}",
+                (margin_px, info_bar_y + int(0.4*dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                0.5, (0, 0, 0), 1, cv2.LINE_AA)
+                
+    return board

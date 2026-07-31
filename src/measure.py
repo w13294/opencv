@@ -60,6 +60,9 @@ class DisplacementResult:
     # 检测质量
     detection_quality: float = 0.0
 
+    # 靶标 ID
+    target_id: int = -1
+
 
 class SimpleKalmanFilter:
     """
@@ -461,4 +464,92 @@ class DisplacementEngine:
             "zeroed": self.ref_settled,
             "zero_cnt": self.zero_cnt,
             "zero_samples": self.zero_target,
+        }
+
+class MultiTargetEngine:
+    """多靶标测量引擎管理器 (包含全局融合逻辑)"""
+    def __init__(self, config: dict):
+        self.config = config
+        self.engines = {} # type: Dict[int, DisplacementEngine]
+
+    def reset_zero(self):
+        # 归零时清空所有旧引擎，重新根据画面中存在的靶标进行归零
+        self.engines.clear()
+
+    def measure_all(self, detections: dict, timestamp: float) -> dict:
+        results = {}
+        
+        # 1. 确保每个检测到的靶标都有对应的引擎
+        for target_id in detections:
+            if target_id not in self.engines:
+                self.engines[target_id] = DisplacementEngine(self.config)
+
+        # 2. 自动清理超过 45 帧未在检测结果中出现的"僵尸"引擎，防止其卡住全局归零进度
+        to_delete = []
+        for tid, eng in self.engines.items():
+            if tid not in detections or not detections[tid].success:
+                if not hasattr(eng, '_missing_count'):
+                    eng._missing_count = 0
+                eng._missing_count += 1
+                if eng._missing_count > 45:
+                    to_delete.append(tid)
+            else:
+                eng._missing_count = 0
+                
+        for tid in to_delete:
+            del self.engines[tid]
+
+        # 3. 收集所有成功检测到的靶标的原始平移量
+        raw_dxs, raw_dys, raw_dzs = [], [], []
+        valid_detects = {}
+        
+        for target_id, det in detections.items():
+            if det.success and det.tvec is not None:
+                engine = self.engines[target_id]
+                # 只有在靶标已经完成归零的情况下，才参与全局计算
+                if engine.ref_settled:
+                    tvec_flat = det.tvec.flatten()
+                    raw_dx = tvec_flat[0] - engine.ref_tvec[0]
+                    raw_dy = tvec_flat[1] - engine.ref_tvec[1]
+                    raw_dz = tvec_flat[2] - engine.ref_tvec[2]
+                    raw_dxs.append(raw_dx)
+                    raw_dys.append(raw_dy)
+                    raw_dzs.append(raw_dz)
+                valid_detects[target_id] = det
+        
+        # 4. 计算全局群体运动共识 (中位数抗噪)
+        global_dx = np.median(raw_dxs) if raw_dxs else 0.0
+        global_dy = np.median(raw_dys) if raw_dys else 0.0
+        global_dz = np.median(raw_dzs) if raw_dzs else 0.0
+        
+        # 5. 独立测量与异常校正
+        for target_id, engine in list(self.engines.items()):
+            if target_id in valid_detects:
+                det = valid_detects[target_id]
+                res = engine.measure(det.tvec, det.rvec, timestamp, det.quality)
+                res.target_id = target_id
+            else:
+                res = engine.maintain(timestamp)
+                res.target_id = target_id
+                
+            results[target_id] = res
+
+        return results
+
+    def get_stats(self) -> dict:
+        """汇总统揽状态"""
+        zeroed_count = sum(1 for e in self.engines.values() if e.ref_settled)
+        total_count = len(self.engines)
+        if total_count > 0:
+            min_zero = min(e.zero_cnt for e in self.engines.values())
+            zero_target = next(iter(self.engines.values())).zero_target
+        else:
+            min_zero = 0
+            zero_target = 100
+        return {
+            "zeroed": zeroed_count == total_count and total_count > 0,
+            "zeroed_count": zeroed_count,
+            "total_count": total_count,
+            "zero_cnt": min_zero,
+            "zero_samples": zero_target,
         }

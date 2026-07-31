@@ -59,7 +59,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import TARGET, MEASURE, LOGGING, CAMERA
 from calibration import CameraCalibrator
 from detector import TargetDetector, DetectionResult
-from measure import DisplacementEngine, DisplacementResult
+from measure import MultiTargetEngine, DisplacementResult
 from visualizer import DataLogger
 
 
@@ -475,18 +475,17 @@ class MeasurementThread(QThread):
     """后台视频采集与测量线程"""
 
     # 信号
-    frame_ready = pyqtSignal(np.ndarray, DetectionResult, DisplacementResult, dict)
+    frame_ready = pyqtSignal(np.ndarray, dict, dict, dict)
     status_update = pyqtSignal(str)
     error_occurred = pyqtSignal(str)
 
-    def __init__(self, camera_id=0, mode="aruco", calib_file=None,
+    def __init__(self, camera_id=0, calib_file=None,
                  resolution=(1280, 720), exposure=-6, gain=None):
         super().__init__()
         self.camera_id = camera_id
         self.target_resolution = resolution
         self.target_exposure = exposure
         self.target_gain = gain
-        self.mode = mode
         self.calib_file = calib_file
         self.running = False
         self.cap = None
@@ -532,8 +531,7 @@ class MeasurementThread(QThread):
             print(f"       建议先进行相机标定以获得准确测量结果!")
 
         self.detector = TargetDetector(TARGET)
-        self.detector.set_mode(self.mode)
-        self.engine = DisplacementEngine(MEASURE)
+        self.engine = MultiTargetEngine(MEASURE)
 
     def run(self):
         """主循环 (在子线程中运行)"""
@@ -638,17 +636,11 @@ class MeasurementThread(QThread):
                 timestamp = time.time()
 
                 # 检测
-                detect_result = self.detector.detect(
+                detect_results = self.detector.detect(
                     frame, self.camera_matrix, self.dist_coeffs)
 
-                # 测量
-                if detect_result.success and detect_result.tvec is not None:
-                    disp_result = self.engine.measure(
-                        detect_result.tvec, detect_result.rvec,
-                        timestamp, detect_result.quality)
-                else:
-                    # 检测失败 → 保持上次位置 (仅卡尔曼预测, 不归零)
-                    disp_result = self.engine.maintain(timestamp)
+                # 测量所有靶标
+                disp_results = self.engine.measure_all(detect_results, timestamp)
 
                 stats = self.engine.get_stats()
 
@@ -659,15 +651,22 @@ class MeasurementThread(QThread):
                 if scale < 1.0:
                     dw, dh = int(w * scale), int(h * scale)
                     display_frame = cv2.resize(frame, (dw, dh), interpolation=cv2.INTER_NEAREST)
-                    # 同步缩放角点坐标
-                    if detect_result.success and detect_result.corners is not None:
-                        detect_result.corners = (detect_result.corners.astype(np.float64) * scale).astype(np.float32)
-                    if detect_result.success and detect_result.center is not None:
-                        detect_result.center = detect_result.center * scale
+                    # 同步缩放角点/中心坐标
+                    for t_id, d_res in detect_results.items():
+                        if d_res.success:
+                            if d_res.corners is not None:
+                                c_arr = np.atleast_2d(d_res.corners).astype(np.float64)
+                                if c_arr.shape[1] == 5:
+                                    c_arr[0, 0:4] *= scale  # 只缩放 (x,y,a,b)，绝不能缩放角度 angle
+                                    d_res.corners = c_arr.astype(np.float32)
+                                else:
+                                    d_res.corners = (c_arr * scale).astype(np.float32)
+                            if d_res.center is not None:
+                                d_res.center = np.asarray(d_res.center, dtype=np.float64) * scale
                 else:
                     display_frame = frame
 
-                self.frame_ready.emit(display_frame, detect_result, disp_result, stats)
+                self.frame_ready.emit(display_frame, detect_results, disp_results, stats)
 
                 # 控制帧率 (用实际耗时，避免忙等待)
                 elapsed = time.time() - timestamp
@@ -831,20 +830,36 @@ class TargetGeneratorDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(10)
 
-        # ── 标签页 ──
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._create_aruco_tab(), "ArUco 标记")
-        self.tabs.addTab(self._create_chessboard_tab(), "棋盘格")
-        self.tabs.addTab(self._create_circles_tab(), "圆形网格")
-        self.tabs.addTab(self._create_quadrant_tab(), "四象限靶标")
-        layout.addWidget(self.tabs)
+        # ── 配置区 ──
+        grp_config = QGroupBox("多靶标组合生成 (四象限靶标)")
+        cfg_layout = QFormLayout(grp_config)
+        cfg_layout.setSpacing(10)
+        cfg_layout.setContentsMargins(20, 16, 20, 16)
+
+        self.edit_sizes = QLineEdit("150, 100, 50")
+        self.edit_sizes.setPlaceholderText("用逗号分隔，如: 150, 100, 50")
+        
+        self.cb_paper = QComboBox()
+        self.cb_paper.addItem("A4 (210 x 297 mm)", (210.0, 297.0))
+        self.cb_paper.addItem("A3 (297 x 420 mm)", (297.0, 420.0))
+        self.cb_paper.addItem("Letter (215.9 x 279.4 mm)", (215.9, 279.4))
+
+        self.spin_dpi = QSpinBox()
+        self.spin_dpi.setRange(72, 1200)
+        self.spin_dpi.setValue(300)
+
+        cfg_layout.addRow("靶标尺寸列表 (mm):", self.edit_sizes)
+        cfg_layout.addRow("打印纸张大小:", self.cb_paper)
+        cfg_layout.addRow("打印 DPI:", self.spin_dpi)
+
+        layout.addWidget(grp_config)
 
         # ── 预览区 ──
         grp_preview = QGroupBox("预览")
         grp_preview_layout = QVBoxLayout(grp_preview)
         self.preview_label = QLabel("点击 [生成预览] 查看靶标图案")
         self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setMinimumHeight(120)
+        self.preview_label.setMinimumHeight(300)
         self.preview_label.setStyleSheet(
             "color: #666; background: #12122a; border: 1px solid #2a2a4a; border-radius: 4px;")
         grp_preview_layout.addWidget(self.preview_label)
@@ -871,224 +886,34 @@ class TargetGeneratorDialog(QDialog):
         layout.addLayout(btn_layout)
 
         # 打印提示
-        info_label = QLabel("打印提示：使用 100% 比例打印，不要缩放；用尺子验证尺寸。")
+        info_label = QLabel("打印提示：使用 100% 比例（原尺寸）打印，不要缩放；使用后用尺子验证基准尺寸。")
         info_label.setStyleSheet("color: #999; font-size: 11px;")
         info_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(info_label)
 
-    # ── ArUco 面板 ──
-    def _create_aruco_tab(self) -> QWidget:
-        w = QWidget()
-        layout = QFormLayout(w)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 16, 20, 16)
-
-        self.ar_id = self._spin(0, 0, 999)
-        self.ar_dict = QComboBox()
-        self.ar_dict.addItems(self.ARUCO_DICTS)
-        self.ar_dict.setCurrentText("DICT_6X6_250")
-        self.ar_size = self._dspin(200, 10, 1000, 1)
-        self.ar_dpi = self._spin(300, 72, 1200)
-        self.ar_border = QComboBox()
-        self.ar_border.addItems(["是 (推荐)", "否"])
-
-        for label, widget in [
-            ("标记 ID:", self.ar_id), ("字典类型:", self.ar_dict),
-            ("标记尺寸 (mm):", self.ar_size), ("打印 DPI:", self.ar_dpi),
-            ("白色边框:", self.ar_border),
-        ]:
-            layout.addRow(label, widget)
-
-        return w
-
-    # ── 棋盘格面板 ──
-    def _create_chessboard_tab(self) -> QWidget:
-        w = QWidget()
-        layout = QFormLayout(w)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 16, 20, 16)
-
-        self.cb_cols = self._spin(9, 3, 30)
-        self.cb_rows = self._spin(6, 3, 30)
-        self.cb_square = self._dspin(30, 5, 200, 1)
-        self.cb_dpi = self._spin(300, 72, 1200)
-
-        for label, widget in [
-            ("内角列数:", self.cb_cols), ("内角行数:", self.cb_rows),
-            ("每格大小 (mm):", self.cb_square), ("打印 DPI:", self.cb_dpi),
-        ]:
-            layout.addRow(label, widget)
-
-        # 快捷标定板按钮
-        quick_btn = QPushButton("🎯 一键生成标准标定板 (9×6, 30mm)")
-        quick_btn.setStyleSheet("background:#3a5a3a; border:1px solid #5a7a5a; padding:6px;")
-        quick_btn.clicked.connect(self._quick_calib_board)
-        layout.addRow(quick_btn)
-
-        return w
-
-    # ── 圆形网格面板 ──
-    def _create_circles_tab(self) -> QWidget:
-        w = QWidget()
-        layout = QFormLayout(w)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 16, 20, 16)
-
-        self.ci_cols = self._spin(9, 2, 30)
-        self.ci_rows = self._spin(6, 2, 30)
-        self.ci_spacing = self._dspin(30, 5, 200, 1)
-        self.ci_dpi = self._spin(300, 72, 1200)
-
-        for label, widget in [
-            ("圆点列数:", self.ci_cols), ("圆点行数:", self.ci_rows),
-            ("圆心间距 (mm):", self.ci_spacing), ("打印 DPI:", self.ci_dpi),
-        ]:
-            layout.addRow(label, widget)
-
-        return w
-
-    # ── 四象限靶标面板 ──
-    def _create_quadrant_tab(self) -> QWidget:
-        w = QWidget()
-        layout = QFormLayout(w)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 16, 20, 16)
-
-        self.qd_size = self._dspin(200, 10, 1000, 1)
-        self.qd_dpi = self._spin(300, 72, 1200)
-
-        for label, widget in [
-            ("靶标外圈直径 (mm):", self.qd_size), ("打印 DPI:", self.qd_dpi),
-        ]:
-            layout.addRow(label, widget)
-
-        return w
-
-    @staticmethod
-    def _spin(val, vmin, vmax):
-        s = QSpinBox()
-        s.setRange(vmin, vmax)
-        s.setValue(val)
-        return s
-
-    @staticmethod
-    def _dspin(val, vmin, vmax, decimals=0):
-        s = QDoubleSpinBox()
-        s.setRange(vmin, vmax)
-        s.setDecimals(decimals)
-        s.setValue(val)
-        return s
-
-    def _quick_calib_board(self):
-        """一键设置标准标定板参数并切换标签页"""
-        self.cb_cols.setValue(9)
-        self.cb_rows.setValue(6)
-        self.cb_square.setValue(30)
-        self.cb_dpi.setValue(300)
-        self.tabs.setCurrentIndex(1)
-        self._on_generate()
-
     def _on_generate(self):
-        """生成当前标签页对应的靶标图案"""
+        """生成靶标图案"""
         import sys
         import os
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from generate_target import generate_multi_quadrant
+
+        size_text = self.edit_sizes.text()
+        try:
+            sizes = [float(s.strip()) for s in size_text.split(",") if s.strip()]
+        except ValueError:
+            QMessageBox.warning(self, "输入错误", "靶标尺寸列表格式错误，请使用英文逗号分隔数字。")
+            return
+            
+        if not sizes:
+            QMessageBox.warning(self, "输入错误", "请至少输入一个靶标尺寸。")
+            return
+
+        dpi = self.spin_dpi.value()
+        paper_w, paper_h = self.cb_paper.currentData()
         
-        idx = self.tabs.currentIndex()
-
-        if idx == 0:  # ArUco
-            dict_name = self.ar_dict.currentText()
-            aruco_dict = cv2.aruco.getPredefinedDictionary(
-                getattr(cv2.aruco, dict_name))
-            bits = aruco_dict.markerSize
-            marker_mm = self.ar_size.value()
-            dpi = self.ar_dpi.value()
-            marker_inch = marker_mm / 25.4
-            marker_px = int(marker_inch * dpi)
-
-            img = cv2.aruco.generateImageMarker(aruco_dict, self.ar_id.value(), marker_px)
-            img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
-            if self.ar_border.currentIndex() == 0:  # 有边框
-                border_px = int(1 * marker_px / bits)
-                img = cv2.copyMakeBorder(img, border_px, border_px, border_px, border_px,
-                                         cv2.BORDER_CONSTANT, value=(255, 255, 255))
-
-            # 信息栏
-            info_h = int(0.5 * dpi)
-            info_bar = np.ones((info_h, img.shape[1], 3), dtype=np.uint8) * 255
-            cv2.putText(info_bar, f"ArUco ID:{self.ar_id.value()} Dict:{dict_name} "
-                        f"Size:{int(marker_mm)}mm",
-                        (10, info_h // 2 + 8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.5, (0, 0, 0), 1, cv2.LINE_AA)
-            self._generated_image = np.vstack([img, info_bar])
-
-        elif idx == 1:  # 棋盘格
-            cols, rows = self.cb_cols.value(), self.cb_rows.value()
-            sq_mm = self.cb_square.value()
-            dpi = self.cb_dpi.value()
-            sq_px = int(sq_mm / 25.4 * dpi)
-
-            board_w = (cols + 1) * sq_px
-            board_h = (rows + 1) * sq_px
-            board = np.zeros((board_h, board_w, 3), dtype=np.uint8)
-
-            for r in range(rows + 1):
-                for c in range(cols + 1):
-                    if (r + c) % 2 == 0:
-                        y1, y2 = r * sq_px, (r + 1) * sq_px
-                        x1, x2 = c * sq_px, (c + 1) * sq_px
-                        board[y1:y2, x1:x2] = (255, 255, 255)
-
-            # 信息栏
-            info_h = int(0.4 * dpi)
-            info_bar = np.ones((info_h, board_w, 3), dtype=np.uint8) * 255
-            cv2.putText(info_bar, f"Chessboard {cols}x{rows}  Square:{sq_mm}mm  "
-                        f"Total:{board_w}x{board_h}px@{dpi}DPI",
-                        (10, info_h // 2 + 8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.45, (0, 0, 0), 1, cv2.LINE_AA)
-            self._generated_image = np.vstack([board, info_bar])
-
-        elif idx == 2:  # 圆形网格
-            cols, rows = self.ci_cols.value(), self.ci_rows.value()
-            spacing_mm = self.ci_spacing.value()
-            dpi = self.ci_dpi.value()
-            spacing_px = int(spacing_mm / 25.4 * dpi)
-            radius_px = int(spacing_px * 0.35)
-            margin = spacing_px
-
-            board_w = (cols - 1) * spacing_px + 2 * margin
-            board_h = (rows - 1) * spacing_px + 2 * margin
-            board = np.ones((board_h, board_w, 3), dtype=np.uint8) * 255
-
-            for r in range(rows):
-                for c in range(cols):
-                    cx = margin + c * spacing_px
-                    cy = margin + r * spacing_px
-                    cv2.circle(board, (cx, cy), radius_px, (0, 0, 0), -1)
-
-            # 基准标记
-            ms = int(radius_px * 1.5)
-            cv2.circle(board, (margin, margin), ms, (0, 0, 0), 3)
-            cv2.circle(board, (margin + (cols - 1) * spacing_px, margin), ms, (0, 0, 0), 3)
-            cv2.circle(board, (margin, margin + (rows - 1) * spacing_px), ms, (0, 0, 0), 3)
-
-            # 信息栏
-            info_h = int(0.4 * dpi)
-            info_bar = np.ones((info_h, board_w, 3), dtype=np.uint8) * 255
-            cv2.putText(info_bar, f"Circle Grid {cols}x{rows}  Spacing:{spacing_mm}mm  "
-                        f"Radius:{spacing_mm*0.35:.1f}mm",
-                        (10, info_h // 2 + 8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.45, (0, 0, 0), 1, cv2.LINE_AA)
-            self._generated_image = np.vstack([board, info_bar])
-
-        elif idx == 3:  # 四象限靶标
-            from generate_target import generate_quadrant
-            size_mm = self.qd_size.value()
-            dpi = self.qd_dpi.value()
-            self._generated_image = generate_quadrant(size_mm, dpi)
-
+        self._generated_image = generate_multi_quadrant(sizes, dpi, paper_w, paper_h)
         self._update_preview()
         self.btn_save.setEnabled(True)
 
@@ -1098,8 +923,7 @@ class TargetGeneratorDialog(QDialog):
         img = self._generated_image.copy()
 
         # 添加比例尺
-        dpi_map = {0: self.ar_dpi.value(), 1: self.cb_dpi.value(), 2: self.ci_dpi.value(), 3: getattr(self, 'qd_dpi', self.ar_dpi).value()}
-        dpi = dpi_map[self.tabs.currentIndex()]
+        dpi = self.spin_dpi.value()
         scale_bar_mm = 30
         scale_bar_px = int(scale_bar_mm / 25.4 * dpi)
         h, w = img.shape[:2]
@@ -1126,8 +950,7 @@ class TargetGeneratorDialog(QDialog):
         if self._generated_image is None:
             return
 
-        type_names = ["aruco", "chessboard", "circles", "quadrant"]
-        default_name = f"target_{type_names[self.tabs.currentIndex()]}.png"
+        default_name = "target_multi_quadrant.png"
 
         path, _ = QFileDialog.getSaveFileName(
             self, "保存靶标图片", default_name,
@@ -1343,6 +1166,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(grp_disp)
 
+        # ── 靶标尺寸配置 ──
+        grp_sizes = QGroupBox("◆  各靶标尺寸配置 (外径 mm)")
+        self.sizes_layout = QFormLayout(grp_sizes)
+        self.sizes_layout.setSpacing(6)
+        self.size_inputs = {}
+        layout.addWidget(grp_sizes)
+
         # ── 轨迹图 ──
         grp_traj = QGroupBox("◆  X-Y 轨迹")
         traj_layout = QVBoxLayout(grp_traj)
@@ -1396,20 +1226,14 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.btn_zero)
         layout.addLayout(btn_layout)
 
-        # 模式选择 + 记录
+        # 记录
         opt_layout = QHBoxLayout()
         opt_layout.setSpacing(8)
-
-        self.cb_mode = QComboBox()
-        self.cb_mode.addItems(["ArUco 标记", "棋盘格", "圆形网格", "四象限靶标"])
-        self.cb_mode.currentIndexChanged.connect(self._on_mode_changed)
 
         self.cb_logging = QCheckBox("记录CSV")
         self.cb_logging.setStyleSheet("QCheckBox { background: transparent; color: #aaa; }")
         self.cb_logging.toggled.connect(self._toggle_logging)
 
-        opt_layout.addWidget(QLabel("模式:"))
-        opt_layout.addWidget(self.cb_mode, 1)
         opt_layout.addWidget(self.cb_logging)
         layout.addLayout(opt_layout)
 
@@ -1520,12 +1344,8 @@ class MainWindow(QMainWindow):
         gain = gain_val if gain_val > 0 else None
 
         # 启动测量线程
-        mode_map = {"ArUco 标记": "aruco", "棋盘格": "chessboard", "圆形网格": "circles", "四象限靶标": "quadrant"}
-        mode = mode_map[self.cb_mode.currentText()]
-
         self.thread = MeasurementThread(
             camera_id=camera_id,
-            mode=mode,
             calib_file=calib_file if os.path.exists(calib_file) else None,
             resolution=resolution,
             exposure=exposure,
@@ -1551,7 +1371,6 @@ class MainWindow(QMainWindow):
         if tb_w:
             tb_w.setObjectName("tbStop")
             tb_w.setStyleSheet("")
-        self.cb_mode.setEnabled(False)
         # 禁用摄像头设置控件
         self.spin_cam_id.setEnabled(False)
         self.btn_scan_cam.setEnabled(False)
@@ -1584,7 +1403,6 @@ class MainWindow(QMainWindow):
             tb_w.setObjectName("tbStart")
             tb_w.setStyleSheet("")
         self.tb_zero.setEnabled(False)
-        self.cb_mode.setEnabled(True)
         # 恢复摄像头设置控件
         self.spin_cam_id.setEnabled(True)
         self.btn_scan_cam.setEnabled(True)
@@ -1604,9 +1422,16 @@ class MainWindow(QMainWindow):
 
         # 重置显示
         self.video_frame.setText("摄像头未连接")
+        self._clear_size_inputs()
         self._reset_displays()
 
-    def _on_frame(self, frame, detect_result, disp_result, stats):
+    def _clear_size_inputs(self):
+        if hasattr(self, 'sizes_layout') and hasattr(self, 'size_inputs'):
+            while self.sizes_layout.rowCount() > 0:
+                self.sizes_layout.removeRow(0)
+            self.size_inputs.clear()
+
+    def _on_frame(self, frame, detect_results, disp_results, stats):
         """接收处理后的帧"""
         # 丢帧保护：如果上一帧还没处理完，直接跳过
         if self._frame_busy:
@@ -1616,30 +1441,101 @@ class MainWindow(QMainWindow):
             self.frame_count += 1
             self.last_frame = frame
 
-            # 更新视频显示
-            annotated = self._draw_frame(frame, detect_result, disp_result)
+            # 动态创建靶标尺寸输入框 (通过之前初始化的sizes_layout)
+            if hasattr(self, 'size_inputs') and hasattr(self, 'sizes_layout') and self.thread and self.thread.detector:
+                for t_id in disp_results.keys():
+                    if t_id not in self.size_inputs:
+                        spin = QDoubleSpinBox()
+                        spin.setRange(10.0, 1000.0)
+                        spin.setDecimals(1)
+                        spin.setSingleStep(1.0)
+                        spin.setStyleSheet("color: white; background: #2d2d4a; padding: 2px;")
+                        spin.setValue(self.thread.detector.get_target_size(t_id))
+                        spin.valueChanged.connect(lambda val, i=t_id: self.thread.detector.set_target_size(i, val))
+                        self.sizes_layout.addRow(f"靶标 ID:{t_id} (mm):", spin)
+                        self.size_inputs[t_id] = spin
+
+            # 提取主靶标进行数据展示
+            main_detect = None
+            main_disp = None
+            
+            # 优先选择当前成功检测到的活跃靶标
+            active_ids = [tid for tid, det in detect_results.items() if det.success]
+            if active_ids:
+                target_id_to_show = active_ids[0]
+            elif disp_results:
+                target_id_to_show = list(disp_results.keys())[0]
+            else:
+                target_id_to_show = None
+            
+            if target_id_to_show is not None:
+                main_disp = disp_results.get(target_id_to_show)
+                main_detect = detect_results.get(target_id_to_show)
+
+            if main_detect is None or main_disp is None:
+                # 没检测到靶标，构造空数据
+                class Dummy: pass
+                main_detect = Dummy(); main_detect.success = False; main_detect.quality = 0
+                main_detect.corners = None; main_detect.center = None
+                
+                if main_disp is None:
+                    main_disp = Dummy(); main_disp.x = 0; main_disp.y = 0; main_disp.z = 0
+                    main_disp.is_outlier = False; main_disp.displacement_2d = 0; main_disp.displacement_3d = 0
+                    main_disp.timestamp = 0
+
+            # 更新视频显示 (此时传给HUD和面板的是主靶标)
+            annotated = self._draw_frame(frame, detect_results, main_disp)
             self._update_video_display(annotated)
 
             # 更新数据面板
-            self._update_displacement(disp_result)
-            self._update_status(detect_result, disp_result, stats)
+            self._update_displacement(main_disp)
+            self._update_status(main_detect, main_disp, stats)
 
             # 更新轨迹
-            if detect_result.success:
-                self.trajectory.update_trajectory(disp_result.x, disp_result.y)
+            if main_detect.success:
+                self.trajectory.update_trajectory(main_disp.x, main_disp.y)
 
             # 数据记录
-            if self.data_logger and detect_result.success:
-                self.data_logger.log(self.frame_count, disp_result)
+            if hasattr(self, 'logging_active') and self.logging_active and self.data_logger and main_detect.success:
+                self.data_logger.log(self.frame_count, main_disp)
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             print(f"[GUI Error] _on_frame: {e}")
         finally:
             self._frame_busy = False
 
-    def _draw_frame(self, frame, detect_result, disp_result):
+    def _draw_frame(self, frame, detect_results, disp_result):
         """在帧上绘制检测叠加"""
         output = frame.copy() if frame.flags['C_CONTIGUOUS'] else frame
         h, w = output.shape[:2]
+
+        any_success = False
+
+        # ── 绘制所有靶标特征点和追踪框 ──
+        if isinstance(detect_results, dict):
+            for t_id, res in detect_results.items():
+                if res.success:
+                    any_success = True
+                    # corners 存储的是椭圆参数: [[cx, cy, axis_a, axis_b, angle]]
+                    if res.corners is not None:
+                        c_arr = np.atleast_2d(res.corners)
+                        if c_arr.shape[1] == 5:
+                            cx_e, cy_e, a_e, b_e, ang_e = c_arr[0]
+                            ellipse = ((float(cx_e), float(cy_e)),
+                                       (float(a_e), float(b_e)), float(ang_e))
+                            cv2.ellipse(output, ellipse, (0, 255, 0), 2, cv2.LINE_AA)
+                    # 画中心十字 + ID 标签
+                    if res.center is not None:
+                        c_center = np.asarray(res.center).flatten()
+                        if len(c_center) >= 2:
+                            cx, cy = int(c_center[0]), int(c_center[1])
+                            cv2.drawMarker(output, (cx, cy), (0, 255, 255),
+                                           cv2.MARKER_CROSS, 20, 2, cv2.LINE_AA)
+                            size_mm = self.thread.detector.get_target_size(t_id) if self.thread else 0
+                            cv2.putText(output, f"ID:{t_id} ({size_mm:.0f}mm)",
+                                        (cx + 15, cy - 15), cv2.FONT_HERSHEY_SIMPLEX,
+                                        0.55, (0, 255, 0), 2, cv2.LINE_AA)
 
         # ── 未标定警告 ──
         if self.thread and not getattr(self.thread, 'calibrated', True):
@@ -1649,12 +1545,13 @@ class MainWindow(QMainWindow):
             cv2.putText(output, warn, (w // 2 - 180, 30),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (50, 50, 255), 2, cv2.LINE_AA)
 
-        # ── 半透明 HUD 面板 (左上角) ──
+        # ── 半透明 HUD 面板 (左上角, 仅 ROI 区域叠加) ──
         panel_h, panel_w = 120, 200
-        overlay = output.copy()
-        cv2.rectangle(overlay, (4, 10), (panel_w + 4, panel_h + 10),
-                       (10, 10, 18), -1)
-        cv2.addWeighted(overlay, 0.55, output, 0.45, 0, output)
+        x1, y1, x2, y2 = 4, 10, panel_w + 4, panel_h + 10
+        roi = output[y1:y2, x1:x2]
+        dark = np.full_like(roi, (10, 10, 18), dtype=np.uint8)
+        cv2.addWeighted(dark, 0.55, roi, 0.45, 0, roi)
+        output[y1:y2, x1:x2] = roi
 
         # 位移数值
         texts = [
@@ -1670,33 +1567,7 @@ class MainWindow(QMainWindow):
             cv2.putText(output, text, (12, y), cv2.FONT_HERSHEY_SIMPLEX,
                         0.52, color, 1, cv2.LINE_AA)
 
-        # ── 检测叠加 ──
-        if detect_result.success:
-            # 角点多边形连线
-            if detect_result.corners is not None:
-                if self.current_mode == "quadrant" and detect_result.corners.shape == (1, 5):
-                    ell_data = detect_result.corners[0]
-                    ellipse = ((ell_data[0], ell_data[1]), (ell_data[2], ell_data[3]), ell_data[4])
-                    cv2.ellipse(output, ellipse, (0, 220, 100), 2)
-                elif self.current_mode == "chessboard" and detect_result.num_points > 1:
-                    cv2.drawChessboardCorners(output, (detect_result.num_points, 1), detect_result.corners, True)
-                else:
-                    pts = detect_result.corners.astype(np.int32).reshape(-1, 2)
-                    cv2.polylines(output, [pts], True, (0, 220, 100), 2)
-                    for pt in pts:
-                        cv2.circle(output, tuple(pt), 4, (0, 80, 180), -1)
-                        cv2.circle(output, tuple(pt), 5, (0, 255, 120), 1)
-
-            # 中心十字
-            if detect_result.center is not None:
-                cx, cy = detect_result.center.astype(int)
-                # 发光外圈
-                cv2.drawMarker(output, (cx, cy), (0, 180, 255),
-                               cv2.MARKER_CROSS, 24, 3)
-                cv2.drawMarker(output, (cx, cy), (0, 255, 255),
-                               cv2.MARKER_CROSS, 24, 1)
-
-        if not detect_result.success:
+        if not any_success:
             # 未检测到提示
             msg = "TARGET NOT FOUND"
             (tw, _), _ = cv2.getTextSize(msg, cv2.FONT_HERSHEY_SIMPLEX, 1.2, 3)
@@ -1814,13 +1685,6 @@ class MainWindow(QMainWindow):
         if self.thread and self.thread.engine:
             self.thread.engine.reset_zero()
             self.statusBar().showMessage("已重新归零 — 请保持靶标静止...")
-
-    def _on_mode_changed(self, idx):
-        mode_map = {0: "aruco", 1: "chessboard", 2: "circles", 3: "quadrant"}
-        self.current_mode = mode_map[idx]
-        if self.thread:
-            self.thread.set_mode(self.current_mode)
-            self.statusBar().showMessage(f"模式切换为: {self.cb_mode.currentText()}")
 
     def _toggle_logging(self, checked):
         if checked:

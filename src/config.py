@@ -26,17 +26,8 @@ CAMERA = {
 # 靶标参数
 # ============================================================
 TARGET = {
-    # ArUco 标记参数
-    "dictionary": "DICT_6X6_250",  # ArUco字典
-    "marker_id": 0,                 # 使用的标记ID
-    "marker_size_mm": 200.0,        # 标记实际边长 (mm) — 10米处需要大标记
-    # 棋盘格参数 (备选方案)
-    "chessboard_size": (4, 4),      # 内角点数 / 圆点阵列 (cols, rows)
-    "chessboard_square_mm": 50.0,   # 棋盘格边长 / 圆心间距 (mm)
-    # 检测参数
-    "subpix_window": (11, 11),      # 亚像素搜索窗口
-    "subpix_zero_zone": (-1, -1),   # 死区
-    "subpix_criteria": (30, 0.001), # (max_iter, epsilon)
+    # 多四象限靶标参数
+    "default_sizes_mm": [200.0, 100.0, 50.0],  # 按从左到右的顺序，如果检测到的靶标多于此列表，取最后一个值
 }
 
 # ============================================================
@@ -104,9 +95,10 @@ pixel_pitch_h = (2 * MEASURE["target_distance_mm"] *
 pixel_pitch_v = (2 * MEASURE["target_distance_mm"] *
                  np.tan(np.radians(VFOV_DEG / 2))) / CAMERA["resolution"][1]
 
-print(f"[理论分析] 10m处像素分辨率: {pixel_pitch_h:.2f} mm/像素 (H) x "
-      f"{pixel_pitch_v:.2f} mm/像素 (V)")
-print(f"[理论分析] 要达到1mm精度, 需要亚像素精度: "
-      f"{MEASURE['required_precision_um']/1000 / pixel_pitch_h:.2f} 像素")
-print(f"[理论分析] 标记在图像中占比约: "
-      f"{TARGET['marker_size_mm'] / (2 * MEASURE['target_distance_mm'] * np.tan(np.radians(HFOV_DEG / 2))) * CAMERA['resolution'][0]:.0f} 像素宽")
+if __name__ == "__main__":
+    print(f"[理论分析] 10m处像素分辨率: {pixel_pitch_h:.2f} mm/像素 (H) x "
+          f"{pixel_pitch_v:.2f} mm/像素 (V)")
+    print(f"[理论分析] 要达到1mm精度, 需要亚像素精度: "
+          f"{MEASURE['required_precision_um']/1000 / pixel_pitch_h:.2f} 像素")
+    print(f"[理论分析] 标记在图像中占比约: "
+          f"{TARGET['default_sizes_mm'][0] / (2 * MEASURE['target_distance_mm'] * np.tan(np.radians(HFOV_DEG / 2))) * CAMERA['resolution'][0]:.0f} 像素宽")
