@@ -335,7 +335,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             if (cameraMatrix != null && !cameraMatrix.empty()) {
                 val rvec = Mat()
                 val tvec = Mat()
-                val d = distCoeffs ?: Mat.zeros(5, 1, CvType.CV_64F)
+                val d = MatOfDouble(distCoeffs ?: Mat.zeros(5, 1, CvType.CV_64F))
 
                 try {
                     Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, d, rvec, tvec)

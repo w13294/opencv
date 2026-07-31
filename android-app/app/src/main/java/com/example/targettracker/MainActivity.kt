@@ -69,10 +69,15 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // 初始化 OpenCV
-        if (!OpenCVLoader.initDebug()) {
-            Log.w(TAG, "OpenCV static load failed, trying async init")
-            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION, this, null)
+        // 初始化 OpenCV (官方 AAR 自带 native 库, initDebug 即可)
+        try {
+            if (!OpenCVLoader.initDebug()) {
+                Log.e(TAG, "OpenCV initDebug returned false")
+                Toast.makeText(this, "OpenCV 初始化失败", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "OpenCV init failed: ${e.message}")
+            Toast.makeText(this, "OpenCV 初始化失败", Toast.LENGTH_LONG).show()
         }
 
         // 初始化标定 Mat
@@ -187,7 +192,7 @@ class MainActivity : ComponentActivity() {
         if (kotlin.math.abs(scaleX - 1.0) > 0.01 || kotlin.math.abs(scaleY - 1.0) > 0.01) {
             // 缩放内参（如果有标定数据）
             if (useCalibration) {
-                val cm = calibData.cameraMatrix.clone()
+                val cm = calibData.cameraMatrix.copyOf()
                 cm[0] *= scaleX; cm[2] *= scaleX
                 cm[4] *= scaleY; cm[5] *= scaleY
                 cameraMatrix.put(0, 0, *cm)
@@ -243,7 +248,7 @@ class MainActivity : ComponentActivity() {
                     buffer.position(row * rowStride)
                     buffer.get(data, row * width, width)
                 }
-                gray.put(0, 0, *data)
+                gray.put(0, 0, data)
             } else {
                 // 逐行拷贝
                 buffer.position(0)
@@ -251,7 +256,7 @@ class MainActivity : ComponentActivity() {
                 for (row in 0 until height) {
                     buffer.position(row * rowStride)
                     buffer.get(rowData, 0, kotlin.math.min(width, rowStride - pixelStride + 1))
-                    gray.put(row, 0, *rowData)
+                    gray.put(row, 0, rowData)
                 }
             }
             return gray
