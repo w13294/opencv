@@ -1561,11 +1561,11 @@ class MainWindow(QMainWindow):
             (f"二维: {disp_result.displacement_2d:.3f} mm", (220, 210, 80)),
         ]
         for i, (text, color) in enumerate(texts):
-            y = 42 + i * 24
+            y = 46 + i * 30
             cv2.putText(output, text, (12, y), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.52, (0, 0, 0), 3, cv2.LINE_AA)
+                        0.70, (0, 0, 0), 5, cv2.LINE_AA)
             cv2.putText(output, text, (12, y), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.52, color, 1, cv2.LINE_AA)
+                        0.70, color, 2, cv2.LINE_AA)
 
         if not any_success:
             # 未检测到提示
