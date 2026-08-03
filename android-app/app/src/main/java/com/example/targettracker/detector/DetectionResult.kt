@@ -12,6 +12,7 @@ data class DetectionResult(
     val targetId: Int = -1,
     val center: Point = Point(0.0, 0.0),
     val ellipse: RotatedRect? = null,
+    val corners: List<Point>? = null,
     val rvec: Mat = Mat.zeros(3, 1, org.opencv.core.CvType.CV_64F),
     val tvec: Mat = Mat.zeros(3, 1, org.opencv.core.CvType.CV_64F),
     val quality: Double = 0.0

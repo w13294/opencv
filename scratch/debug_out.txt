@@ -1,0 +1,5 @@
+﻿closed mean in ROI center: 255
+q_black: [1632, 700555, 1631, 700555]
+black_quads: [0, 1, 2, 3] (count=4)
+b/w ratio: 1.00, black_total=1404373, white_total=1397848
+thresh unique values in ROI: [  0 255]

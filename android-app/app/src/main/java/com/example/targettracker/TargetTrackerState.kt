@@ -15,6 +15,9 @@ class TargetTrackerState {
     var dispResults: Map<Int, DisplacementResult> by mutableStateOf(emptyMap())
     var detectResults: Map<Int, DetectionResult> by mutableStateOf(emptyMap())
 
+    // 当前图像尺寸 (imageWidth, imageHeight), 用于标注层缩放计算
+    var imageSize: Pair<Int, Int> by mutableStateOf(0 to 0)
+
     // 帧统计
     var fps: Double by mutableStateOf(0.0)
     var frameNum: Long by mutableStateOf(0)

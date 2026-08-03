@@ -2,6 +2,7 @@ package com.example.targettracker
 
 import android.app.Application
 import android.os.Build
+import android.util.Log
 import java.io.File
 import java.io.FileWriter
 import java.text.SimpleDateFormat
@@ -14,8 +15,30 @@ import java.util.Locale
  */
 class AppApplication : Application() {
 
+    companion object {
+        private const val TAG = "TargetTrackerApp"
+        /** OpenCV native 库是否已成功加载 */
+        @Volatile
+        var openCvLoaded: Boolean = false
+            private set
+    }
+
     override fun onCreate() {
         super.onCreate()
+
+        // 在 Application 阶段就加载 OpenCV native 库, 确保任何 Mat() 调用前库已就绪
+        // (MainActivity 的属性初始化会早于其 onCreate, 必须在此提前加载)
+        if (!openCvLoaded) {
+            try {
+                System.loadLibrary("opencv_java4")
+                openCvLoaded = true
+                Log.i(TAG, "OpenCV native library loaded successfully")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Failed to load OpenCV native library: ${e.message}")
+                openCvLoaded = false
+            }
+        }
+
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             writeCrash(thread, throwable)
             // 交给系统默认处理, 让进程正常退出

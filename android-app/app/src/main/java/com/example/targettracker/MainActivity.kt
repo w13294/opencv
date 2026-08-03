@@ -11,6 +11,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
@@ -46,8 +48,9 @@ class MainActivity : ComponentActivity() {
 
     // 标定数据 (默认内参)
     private var calibData = CalibrationData()
-    private var cameraMatrix: Mat = Mat()
-    private var distCoeffs: Mat = Mat()
+    // 注意: Mat 必须在 OpenCV native 库加载后才能创建, 故延迟初始化, 不在属性声明处 new
+    private lateinit var cameraMatrix: Mat
+    private lateinit var distCoeffs: Mat
     private var useCalibration = false
 
     // 帧计数
@@ -71,19 +74,15 @@ class MainActivity : ComponentActivity() {
         try {
             super.onCreate(savedInstanceState)
 
-            // 初始化 OpenCV (官方 AAR 自带 native 库, 4.11.0 使用 initLocal)
-            var opencvOk = false
-            try {
-                opencvOk = OpenCVLoader.initLocal()
-                if (!opencvOk) {
-                    Log.e(TAG, "OpenCV initLocal returned false")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "OpenCV init failed: ${e.message}")
-                writeCrash("onCreate-OpenCV", e)
+            // OpenCV native 库由 AppApplication.onCreate 中的 System.loadLibrary 加载
+            // 4.x 官方 AAR 的 initLocal() 不再执行加载, 故直接检查加载结果
+            val opencvOk = AppApplication.openCvLoaded
+            if (!opencvOk) {
+                Log.e(TAG, "OpenCV native library not loaded")
+                writeCrash("onCreate-OpenCV", RuntimeException("OpenCV native library not loaded"))
             }
 
-            // 初始化标定 Mat
+            // 初始化标定 Mat (必须在 native 库加载之后)
             updateCalibrationMats()
 
             setContent {
@@ -176,9 +175,18 @@ class MainActivity : ComponentActivity() {
                 it.setSurfaceProvider(pv.surfaceProvider)
             }
 
-            // ImageAnalysis
+            // ImageAnalysis: 强制 640x480, 避开 CameraX 在 Android 14+ 自动选 maxRes (2448x2448)
+            val resolutionSelector = ResolutionSelector.Builder()
+                .setResolutionStrategy(
+                    ResolutionStrategy(
+                        android.util.Size(640, 480),
+                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                    )
+                )
+                .build()
+
             val imageAnalysis = ImageAnalysis.Builder()
-                .setTargetResolution(android.util.Size(1280, 720))
+                .setResolutionSelector(resolutionSelector)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
@@ -237,30 +245,50 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // YUV → Gray
-        val gray = imageProxyToGray(imageProxy) ?: return
+        // YUV → Gray (Mat + ByteArray 共用同一份数据)
+        val (gray, grayData) = imageProxyToGray(imageProxy) ?: return
+        val grayW = imageProxy.width
+        val grayH = imageProxy.height
         val timestamp = System.currentTimeMillis()
 
-        // 检测
-        val detResults = detector.detect(
-            gray,
-            if (useCalibration) cameraMatrix else null,
-            if (useCalibration) distCoeffs else null
-        )
+        try {
+            // 检测
+            val detResults = detector.detect(
+                gray,
+                grayData,
+                grayW,
+                grayH,
+                if (useCalibration) cameraMatrix else null,
+                if (useCalibration) distCoeffs else null
+            )
 
-        // 测量
-        val dispResults = engine.measureAll(detResults, timestamp)
+            // 测量
+            val dispResults = engine.measureAll(detResults, timestamp)
 
-        // 更新状态 (必须在主线程)
-        runOnUiThread {
-            state.detectResults = detResults
-            state.dispResults = dispResults
-            state.frameNum++
-            state.stats = engine.getStats()
+            // 更新状态 (必须在主线程)
+            runOnUiThread {
+                state.detectResults = detResults
+                state.dispResults = dispResults
+                state.imageSize = grayW to grayH
+                state.frameNum++
+                state.stats = engine.getStats()
+            }
+        } finally {
+            gray.release() // 释放每帧灰度 Mat, 避免内存泄漏导致后续帧检测失败
         }
     }
 
-    private fun imageProxyToGray(imageProxy: androidx.camera.core.ImageProxy): Mat? {
+    // 复用 ByteArray 缓冲, 避免每帧分配
+    private var grayBuffer: ByteArray = ByteArray(0)
+    @Synchronized
+    private fun acquireGrayBuffer(size: Int): ByteArray {
+        if (grayBuffer.size < size) {
+            grayBuffer = ByteArray(size)
+        }
+        return grayBuffer
+    }
+
+    private fun imageProxyToGray(imageProxy: androidx.camera.core.ImageProxy): Pair<Mat, ByteArray>? {
         try {
             val planes = imageProxy.planes
             if (planes.isEmpty()) return null
@@ -273,27 +301,27 @@ class MainActivity : ComponentActivity() {
             val height = imageProxy.height
 
             val gray = Mat(height, width, org.opencv.core.CvType.CV_8UC1)
+            // 复用 grayBuffer (避免每帧分配)
+            val data = acquireGrayBuffer(width * height)
 
             if (pixelStride == 1) {
-                // Y平面连续
-                val data = ByteArray(height * width)
                 buffer.position(0)
                 for (row in 0 until height) {
                     buffer.position(row * rowStride)
                     buffer.get(data, row * width, width)
                 }
-                gray.put(0, 0, data)
             } else {
-                // 逐行拷贝
                 buffer.position(0)
-                val rowData = ByteArray(width)
                 for (row in 0 until height) {
                     buffer.position(row * rowStride)
-                    buffer.get(rowData, 0, kotlin.math.min(width, rowStride - pixelStride + 1))
-                    gray.put(row, 0, rowData)
+                    val n = kotlin.math.min(width, rowStride - pixelStride + 1)
+                    buffer.get(data, row * width, n)
+                    // 处理不足部分: 0 填充
+                    for (k in n until width) data[row * width + k] = 0
                 }
             }
-            return gray
+            gray.put(0, 0, data)
+            return gray to data
         } catch (e: Exception) {
             Log.e(TAG, "YUV conversion failed: ${e.message}")
             return null
@@ -319,7 +347,7 @@ class MainActivity : ComponentActivity() {
     override fun onDestroy() {
         super.onDestroy()
         analysisExecutor.shutdownNow()
-        cameraMatrix.release()
-        distCoeffs.release()
+        if (::cameraMatrix.isInitialized) cameraMatrix.release()
+        if (::distCoeffs.isInitialized) distCoeffs.release()
     }
 }
