@@ -15,7 +15,9 @@ data class DetectionResult(
     val corners: List<Point>? = null,
     val rvec: Mat = Mat.zeros(3, 1, org.opencv.core.CvType.CV_64F),
     val tvec: Mat = Mat.zeros(3, 1, org.opencv.core.CvType.CV_64F),
-    val quality: Double = 0.0
+    val quality: Double = 0.0,
+    /** 该靶标使用的物理尺寸 (mm), 用于标注层显示 */
+    val sizeMm: Double = 200.0
 ) {
     val cx: Double get() = center.x
     val cy: Double get() = center.y

@@ -66,8 +66,10 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
     ): Map<Int, DetectionResult> {
         try {
         // ──── 预处理 ────
+        // medianBlur: 大靶标用 ksize=5 平滑噪声; 小靶标用 ksize=3 避免破坏细结构
+        // (5x5 中值滤波会把直径 ~50px 的小靶标角点磨圆, 导致外环拟合失败)
         val blurred = Mat()
-        Imgproc.medianBlur(gray, blurred, 5)
+        Imgproc.medianBlur(gray, blurred, 3)
 
         // Otsu 二值化 (不取反: 黑色靶区域 = 255)
         val thresh = Mat()
@@ -171,9 +173,12 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         // 黑象限: 右上(270-360) + 左下(90-180) → dirAngles[0]=右上 + dirAngles[2]=左下 应是黑
         // 即 isBlack[0]=T, isBlack[2]=T, isBlack[1]=F, isBlack[3]=F → 0+2 对角同色=黑
         val dirAngles = doubleArrayOf(315.0, 45.0, 135.0, 225.0)
+        // 扇区宽度自适应: 大靶标内缩到环核心, 小靶标略微外扩以采集更多像素
         val rInFrac = 0.30
         val rOutFrac = 0.70
         val sectorHalfDeg = 50.0
+        // 图像对角线长度 (用于把绝对像素尺寸归一化为占比)
+        val imgDiag = Math.sqrt(width * width + height * height.toDouble())
 
         val candidates = mutableListOf<Candidate>()
         for (oc in outerCandidates) {
@@ -237,32 +242,104 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             if (oc.area > 50) {
                 // Log.d(TAG, "  cx=($cx,$cy) R=$R area=${oc.area.toInt()} quadMean=[${quadMean[0].toInt()},${quadMean[1].toInt()},${quadMean[2].toInt()},${quadMean[3].toInt()}] contrast=${contrast.toInt()}")
             }
-            // 黑白对比必须显著 (过低视为背景噪声)
-            if (contrast < 25.0) continue
+            // 每个候选按自身尺寸决定阈值 (避免大靶标把全场景判定为"严苛场景")
+            val candSizeRatio = (R * 2.0 / imgDiag).coerceIn(0.005, 1.0)
+            val contrastThr = if (candSizeRatio < 0.10) 5.0 else 25.0
+            val bwRatioThr = if (candSizeRatio < 0.10) 0.10 else 0.35
+
+            // 黑白对比必须显著 (过低视为背景噪声); 小靶标阈值放宽
+            if (contrast < contrastThr) {
+                if (oc.area > 200) Log.d(TAG, "  R=$R contrast=${contrast.toInt()} < $contrastThr reject")
+                continue
+            }
 
             // 灰度低 = 暗 = 黑象限; 灰度高 = 亮 = 白象限
-            val thr = (minMean + maxMean) / 2.0
-            val isBlack = BooleanArray(4) { quadMean[it] <= thr }
-            val blackCount = isBlack.count { it }
-            // 必须 2 个黑 + 2 个白 (标准 quadrant target)
-            if (blackCount != 2) continue
-            // 必须对角: 1+3 或 0+2 异或 (相邻黑=假阳性)
-            val diag01 = isBlack[0] != isBlack[1]
-            val diag02 = isBlack[0] == isBlack[2]
-            val diag13 = isBlack[1] == isBlack[3]
-            if (!diag01 || !diag02 || !diag13) continue
-            // 黑白对比强度比
-            val blackMean = (quadMean[if (isBlack[0]) 0 else 1] + quadMean[if (isBlack[2]) 2 else 3]) / 2.0
-            val whiteMean = (quadMean[if (isBlack[0]) 1 else 0] + quadMean[if (isBlack[2]) 3 else 2]) / 2.0
-            val bwRatio = (whiteMean - blackMean) / Math.max(whiteMean, 1.0)
-            if (bwRatio < 0.35) continue
+            // 用象限的相对深浅而非绝对阈值分类: 计算 4 个象限的相对排名
+            // 排序后: 最深的两个 vs 最浅的两个, 若对角象限都同侧 (均深或均浅) 即合格
+            val sortedIdx = (0..3).sortedBy { quadMean[it] }
+            // 深色排名 0,1 与浅色排名 2,3
+            val darkSet = sortedIdx.take(2).toSet()
+            // 必须对角: 0-2 或 1-3 同属"深色" (即真实靶标的对角黑)
+            val d0 = 0 in darkSet
+            val d1 = 1 in darkSet
+            val d2 = 2 in darkSet
+            val d3 = 3 in darkSet
+            val isDiag = (d0 && d2 && !d1 && !d3) || (d1 && d3 && !d0 && !d2)
+            if (!isDiag) {
+                if (oc.area > 200) Log.d(TAG, "  R=$R not diagonal dark=$darkSet reject (quadMean=${quadMean.map { it.toInt() }})")
+                continue
+            }
+            // 黑白对比强度比 (用最深 2 象限均值 vs 最浅 2 象限均值)
+            val darkMean = (quadMean[sortedIdx[0]] + quadMean[sortedIdx[1]]) / 2.0
+            val lightMean = (quadMean[sortedIdx[2]] + quadMean[sortedIdx[3]]) / 2.0
+            val bwRatio = (lightMean - darkMean) / Math.max(lightMean, 1.0)
+            if (bwRatio < bwRatioThr) {
+                if (oc.area > 200) Log.d(TAG, "  R=$R bwRatio=${"%.2f".format(bwRatio)} < $bwRatioThr reject (quadMean=${quadMean.map { it.toInt() }})")
+                continue
+            }
+
+            // ───── 圆环完整性检查 (避免截断的靶标、孤立黑色斑块被误识别) ─────
+            // 将外环轮廓绕候选中心均匀采样 24 个角度, 统计每个角度上有多少个轮廓
+            // 点 (即"这一角度是否有外环经过"); 完整圆环应至少覆盖 18/24 角度.
+            // 截断的靶标 (贴在画面边缘) 缺失弧段, 覆盖角度数显著下降.
+            val ringHist = IntArray(24)
+            val pts = contours[oc.idx].toArray()
+            for (p in pts) {
+                val ang = Math.atan2(p.y - cy, p.x - cx)
+                val angPos = if (ang < 0) ang + 2.0 * Math.PI else ang
+                val bin = ((angPos / (2.0 * Math.PI)) * 24.0).toInt().coerceIn(0, 23)
+                ringHist[bin]++
+            }
+            val populatedBins = ringHist.count { it > 0 }
+            if (populatedBins < 18) {
+                if (oc.area > 200) Log.d(TAG, "  R=$R incomplete ring: only $populatedBins/24 bins populated reject")
+                continue
+            }
+
+            // ───── 内白圆占比 (防止黑色弧形/斑块误识别) ─────
+            // 完整靶标内圆 (r < 0.6R) 应有大面积白色 (X 形十字臂 + 4 个白象限);
+            // 截断的靶标只剩一半, 白色面积必然 < 35% 或 > 95%.
+            // 内白阈值用已计算出的深浅中点 (避免依赖 Otsu 在小区域失灵)
+            val innerThr = (sortedIdx.let { (quadMean[sortedIdx[0]] + quadMean[sortedIdx[3]]) / 2.0 })
+            var innerCount = 0
+            var innerWhite = 0
+            val innerR = (0.60 * R * 0.60 * R).toInt()
+            val ix0 = Math.max(0, Math.floor(cx - 0.6 * R).toInt())
+            val ix1 = Math.min(width - 1, Math.ceil(cx + 0.6 * R).toInt())
+            val iy0 = Math.max(0, Math.floor(cy - 0.6 * R).toInt())
+            val iy1 = Math.min(height - 1, Math.ceil(cy + 0.6 * R).toInt())
+            for (y in iy0..iy1) {
+                val rowBase = y * width
+                val dy = (y - cy)
+                val dy2 = dy * dy
+                if (dy2 > innerR) continue
+                for (x in ix0..ix1) {
+                    val dx = x - cx
+                    val d2 = dx * dx + dy2
+                    if (d2 > innerR) continue
+                    innerCount++
+                    val g = grayData[rowBase + x].toInt() and 0xFF
+                    if (g > innerThr) innerWhite++
+                }
+            }
+            val innerWhiteRatio = if (innerCount > 0) innerWhite.toDouble() / innerCount else 0.0
+            // 完整靶标: 内圆中黑象限占 ~30% (2/4 个黑色三角), 其余 ~70% 白色;
+            // 但因为 X 形十字臂也是白色, 实际白占 60-80%
+            if (innerWhiteRatio < 0.30 || innerWhiteRatio > 0.95) {
+                if (oc.area > 200) Log.d(TAG, "  R=$R innerWhiteRatio=${"%.2f".format(innerWhiteRatio)} reject")
+                continue
+            }
+
+            // ───── 边界判定 ─────
+// 原本的边界截断检查会误杀大靶标 (占画面 60% 的 T0 也被判定为"截断"),
+// 实际上圆环角度覆盖已经能识别真正的截断, 这里直接跳过此关卡.
 
             val quadCenters = Array(4) { idx ->
                 val ang = dirAngles[idx] * Math.PI / 180.0
                 Point(cx + 0.6 * R * Math.cos(ang), cy + 0.6 * R * Math.sin(ang))
             }
 
-            val quality = contrast / 255.0 * 0.6 + blackCount / 4.0 * 0.4
+            val quality = contrast / 255.0 * 0.6 + bwRatio * 0.4
             candidates.add(Candidate(oc.ellipse, quadCenters, oc.area, quality, oc.ratio))
         }
 
@@ -358,7 +435,9 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         val results = mutableMapOf<Int, DetectionResult>()
         for ((si, tid) in assignedIds) {
             val cand = sorted[si]
-            val sizeMm = if (tid < defaultSizes.size) defaultSizes[tid] else 200.0
+            // 优先用用户设定的尺寸, 否则按 tid 取默认尺寸表, 再否则 200mm
+            val sizeMm = targetSizes[tid]
+                ?: (if (tid < defaultSizes.size) defaultSizes[tid] else 200.0)
 
             val objectPoints = MatOfPoint3f(
                 Point3(-sizeMm / 2.0, -sizeMm / 2.0, 0.0),
@@ -405,7 +484,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
                         corners = cand.quadCenters.toList(),
                         rvec = rvec.clone(),
                         tvec = tvec.clone(),
-                        quality = cand.quality
+                        quality = cand.quality,
+                        sizeMm = sizeMm
                     )
                     rvec.release(); tvec.release()
                 } catch (e: Exception) {
@@ -449,7 +529,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             center = Point(cx, cy), ellipse = cand.ellipse,
             corners = cand.quadCenters.toList(),
             rvec = Mat.zeros(3, 1, CvType.CV_64F),
-            tvec = tvec, quality = cand.quality * 0.8
+            tvec = tvec, quality = cand.quality * 0.8,
+            sizeMm = sizeMm
         )
     }
 

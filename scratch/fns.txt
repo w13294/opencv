@@ -1,0 +1,134 @@
+﻿
+> android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:187:    private fun enumerateCameras() {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:188:        try {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:189:            val provider = ProcessCameraP
+rovider.getInstance(this).get()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:190:            val infos = provider.availabl
+eCameraInfos
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:191:            availableCameras.clear()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:192:            for (info in infos) {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:193:                val c2 = Camera2CameraInf
+o.from(info)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:194:                val id = c2.cameraId
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:195:                // 镜头朝向: 从 CameraCharacte
+ristics.LENS_FACING 读取 (Int: 1=后摄, 0=前摄, 2=外置)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:196:                val facingKey = android.h
+ardware.camera2.CameraCharacteristics.LENS_FACING
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:197:                val facingRaw: Int = try 
+{
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:198:                    val f = c2.getCameraC
+haracteristic(facingKey)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:199:                    f ?: CameraSelector.L
+ENS_FACING_BACK
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:200:                } catch (_: Exception) { 
+CameraSelector.LENS_FACING_BACK }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:201:                val lensFacing = facingRa
+w
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:202:                // 物理焦距 (用于区分广角/长焦); getC
+ameraCharacteristic 返回 FloatArray?
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:203:                val focalKey = android.ha
+rdware.camera2.CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:204:                val focals: FloatArray = 
+try {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:205:                    val ch = c2.getCamera
+Characteristic(focalKey)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:206:                    ch ?: floatArrayOf(0f
+)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:207:                } catch (_: Exception) { 
+floatArrayOf(0f) }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:208:                val facingStr = if (lensF
+acing == CameraSelector.LENS_FACING_FRONT) "前摄" else "后摄"
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:209:                // 用最小物理焦距判断广角/长焦
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:210:                val minFocal = focals.min
+OrNull() ?: 0f
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:211:                val typeStr = when {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:212:                    minFocal <= 0f -> ""
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:213:                    minFocal < 3.0f -> "·
+广角"
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:214:                    minFocal > 6.0f -> "·
+长焦"
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:215:                    else -> "·标准"
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:216:                }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:217:                val label = "摄像头$id $faci
+ngStr$typeStr (${"%.1f".format(minFocal)}mm)"
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:218:                availableCameras.add(Came
+raOption(id, lensFacing, focals, label, info))
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:219:            }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:220:            // 默认选中第一个后摄, 没有则第一个
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:221:            if (availableCameras.isNotEmp
+ty()) {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:222:                val backIdx = availableCa
+meras.indexOfFirst { it.lensFacing == CameraSelector.LENS_FACING_BACK }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:223:                currentCameraIndex = if (
+backIdx >= 0) backIdx else 0
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:224:                selectedCameraInfo = avai
+lableCameras[currentCameraIndex].cameraInfo
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:225:            }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:226:        } catch (e: Exception) {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:227:            Log.e(TAG, "enumerateCameras 
+failed: ${e.message}")
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:228:        }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:229:    }
+> android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:246:    fun switchCamera(index: Int) {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:247:        if (index < 0 || index >= availab
+leCameras.size) return
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:248:        currentCameraIndex = index
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:249:        selectedCameraInfo = availableCam
+eras[index].cameraInfo
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:250:        // 重新绑定相机 (会 unbindAll 后重新 bind)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:251:        startCamera()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:252:    }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:253:    private fun startCameraWithPreview(pv
+: PreviewView) {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:254:        if (!checkCameraPermission()) ret
+urn
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:255:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:256:        // 更新标定状态
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:257:        state.calibrationData = calibData
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:258:        state.warningMessage = if (!useCa
+libration || !calibData.isValid)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:259:            "相机未标定 (使用默认内参)" else null
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:260:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:261:        val cameraProviderFuture = Proces
+sCameraProvider.getInstance(this)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:262:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:263:        cameraProviderFuture.addListener(
+{
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:264:            val cameraProvider = cameraPr
+oviderFuture.get()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:265:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:266:            // Preview
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:267:            val preview = Preview.Builder
+().build().also {
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:268:                it.setSurfaceProvider(pv.
+surfaceProvider)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:269:            }
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:270:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:271:            // ImageAnalysis: 强制 640x480,
+ 避开 CameraX 在 Android 14+ 自动选 maxRes (2448x2448)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:272:            val resolutionSelector = Reso
+lutionSelector.Builder()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:273:                .setResolutionStrategy(
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:274:                    ResolutionStrategy(
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:275:                        android.util.Size
+(640, 480),
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:276:                        ResolutionStrateg
+y.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:277:                    )
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:278:                )
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:279:                .build()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:280:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:281:            val imageAnalysis = ImageAnal
+ysis.Builder()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:282:                .setResolutionSelector(re
+solutionSelector)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:283:                .setBackpressureStrategy(
+ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:284:                .build()
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:285:
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:286:            // 分析器回调
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:287:            var grayCache: Mat? = null
+  android-app\app\src\main\java\com\example\targettracker\MainActivity.kt:288:            imageAnalysis.setAnalyzer(ana
+lysisExecutor) { imageProxy ->
+
+

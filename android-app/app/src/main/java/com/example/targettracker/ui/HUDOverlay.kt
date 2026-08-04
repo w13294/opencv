@@ -77,6 +77,9 @@ private fun DisplacementPanel(
         if (warning != null) {
             Spacer(Modifier.height(4.dp))
             Text(warning, style = MaterialTheme.typography.labelSmall, color = HudYellow)
+        } else if (detect != null) {
+            // 默认内参估算, 提示距离仅供参考
+            Text("未标定·距离≈估算值", style = MaterialTheme.typography.labelSmall, color = HudGray)
         }
     }
 }

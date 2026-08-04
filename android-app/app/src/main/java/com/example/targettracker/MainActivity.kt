@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraInfo
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
@@ -16,6 +17,9 @@ import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.mutableStateOf
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import android.hardware.camera2.CameraCharacteristics
 import com.example.targettracker.camera.CameraAnalyzer
 import com.example.targettracker.config.CalibrationData
 import com.example.targettracker.config.Config
@@ -60,6 +64,30 @@ class MainActivity : ComponentActivity() {
     // 已有相机绑定的 previewView
     private var previewView: PreviewView? = null
 
+    // ──── 多摄像头支持 ────
+    data class CameraOption(
+        val id: String,            // Camera2 cameraId (如 "0", "1")
+        val lensFacing: Int,       // CameraSelector.LENS_FACING_BACK / FRONT
+        val focalLengths: FloatArray, // 物理焦距 (mm), 用于区分广角/长焦
+        val label: String,
+        val cameraInfo: CameraInfo
+    )
+
+    private var availableCameras = mutableListOf<CameraOption>()
+    // Compose 可观察状态: 摄像头标签列表 & 当前索引 (供 UI 重组)
+    private val cameraLabelsState = mutableStateOf<List<String>>(emptyList())
+    private val cameraIndexState = mutableStateOf(0)
+    private var currentCameraIndex = 0
+    // 当前选中的 CameraInfo (用于 CameraSelector.addCameraFilter)
+    private var selectedCameraInfo: CameraInfo? = null
+
+    // ── 变焦控制 (后摄是逻辑多摄, 超广角/长焦通过变焦比切换物理镜头) ──
+    private var boundCamera: androidx.camera.core.Camera? = null
+    val zoomRatiosState = mutableStateOf<List<Float>>(emptyList())
+    val currentZoomState = mutableStateOf(1.0f)
+    // 当前是否前摄 (前摄画面水平镜像, 需翻转后再检测)
+    @Volatile private var isFrontCamera = false
+
     // ──── 权限请求 ────
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -90,9 +118,16 @@ class MainActivity : ComponentActivity() {
                     if (opencvOk) {
                         MainScreen(
                             state = state,
+                            cameraLabels = cameraLabelsState.value,
+                            currentCameraIndex = cameraIndexState.value,
+                            onSwitchCamera = { idx -> switchCamera(idx) },
+                            zoomRatios = zoomRatiosState.value,
+                            currentZoom = currentZoomState.value,
+                            onSetZoom = { z -> setZoom(z) },
                             onCameraReady = { pv ->
                                 previewView = pv
-                                startCameraWithPreview(pv)
+                                enumerateCameras()
+                                startCamera()
                             },
                             onZeroReset = {
                                 state.zeroed = !state.zeroed
@@ -105,7 +140,8 @@ class MainActivity : ComponentActivity() {
                             onReset = {
                                 engine.reset()
                                 state.zeroed = false
-                            }
+                            },
+                            onSetTargetSize = { tid, mm -> detector.setTargetSize(tid, mm) }
                         )
                     } else {
                         // OpenCV 加载失败: 显示错误界面, 不再启动相机
@@ -157,6 +193,102 @@ class MainActivity : ComponentActivity() {
         previewView?.let { startCameraWithPreview(it) }
     }
 
+    /** 枚举设备所有摄像头 (后摄/前摄/超广角/长焦) */
+    private fun enumerateCameras() {
+        try {
+            val provider = ProcessCameraProvider.getInstance(this).get()
+            val infos = provider.availableCameraInfos
+            availableCameras.clear()
+            for (info in infos) {
+                val c2 = Camera2CameraInfo.from(info)
+                val id = c2.cameraId
+                // 镜头朝向: 从 CameraCharacteristics.LENS_FACING 读取 (Int: 1=后摄, 0=前摄, 2=外置)
+                val facingKey = android.hardware.camera2.CameraCharacteristics.LENS_FACING
+                val facingRaw: Int = try {
+                    val f = c2.getCameraCharacteristic(facingKey)
+                    f ?: CameraSelector.LENS_FACING_BACK
+                } catch (_: Exception) { CameraSelector.LENS_FACING_BACK }
+                val lensFacing = facingRaw
+                // 物理焦距 (用于区分广角/长焦); getCameraCharacteristic 返回 FloatArray?
+                val focalKey = android.hardware.camera2.CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS
+                val focals: FloatArray = try {
+                    val ch = c2.getCameraCharacteristic(focalKey)
+                    ch ?: floatArrayOf(0f)
+                } catch (_: Exception) { floatArrayOf(0f) }
+                val facingStr = if (lensFacing == CameraSelector.LENS_FACING_FRONT) "前摄" else "后摄"
+                val minFocal = focals.minOrNull() ?: 0f
+                // 逻辑多摄: 读取隐藏的物理镜头数量 (本机后摄 physicalIds=[3,2,4,5])
+                val physCount = try {
+                    val cm = getSystemService(android.content.Context.CAMERA_SERVICE)
+                        as android.hardware.camera2.CameraManager
+                    cm.getCameraCharacteristics(id).physicalCameraIds.size
+                } catch (_: Exception) { 0 }
+                // 变焦范围: 决定能否够到超广角(<1x)与长焦(>1x)
+                val zr = try {
+                    c2.getCameraCharacteristic(
+                        android.hardware.camera2.CameraCharacteristics.CONTROL_ZOOM_RATIO_RANGE
+                    )
+                } catch (_: Exception) { null }
+                val zoomStr = if (zr != null) " ${zr.lower}~${zr.upper}x" else ""
+                val physStr = if (physCount > 1) "·${physCount}镜头" else ""
+                val label = "摄像头$id $facingStr$physStr (${"%.1f".format(minFocal)}mm)$zoomStr"
+                availableCameras.add(CameraOption(id, lensFacing, focals, label, info))
+            }
+            // 默认选中第一个后摄, 没有则第一个
+            if (availableCameras.isNotEmpty()) {
+                val backIdx = availableCameras.indexOfFirst { it.lensFacing == CameraSelector.LENS_FACING_BACK }
+                currentCameraIndex = if (backIdx >= 0) backIdx else 0
+                selectedCameraInfo = availableCameras[currentCameraIndex].cameraInfo
+            }
+            // 发布到 Compose 状态, 触发 UI 重组 (否则弹窗因列表为空而不显示)
+            cameraLabelsState.value = availableCameras.map { it.label }
+            cameraIndexState.value = currentCameraIndex
+            Log.i(TAG, "enumerateCameras: found ${availableCameras.size} -> ${cameraLabelsState.value}")
+        } catch (e: Exception) {
+            Log.e(TAG, "enumerateCameras failed: ${e.message}")
+        }
+    }
+
+    /** 根据当前选中摄像头构造 CameraSelector */
+    private fun buildCameraSelector(): CameraSelector {
+        val info = selectedCameraInfo
+        return if (info != null) {
+            CameraSelector.Builder()
+                .addCameraFilter { cameraInfos -> cameraInfos.filter { it == info } }
+                .build()
+        } else {
+            CameraSelector.DEFAULT_BACK_CAMERA
+        }
+    }
+
+    // CameraFilter 的入参是 Camera, 通过 cameraInfo 比较
+
+    /** 由 UI 调用: 切换摄像头 */
+    fun switchCamera(index: Int) {
+        if (index < 0 || index >= availableCameras.size) return
+        currentCameraIndex = index
+        cameraIndexState.value = index
+        selectedCameraInfo = availableCameras[index].cameraInfo
+        Log.i(TAG, "switchCamera -> $index ${availableCameras[index].label}")
+        // 重新绑定相机 (会 unbindAll 后重新 bind)
+        startCamera()
+    }
+
+    /**
+     * 由 UI 调用: 设置变焦比。
+     * 后摄是逻辑多摄 (physicalIds=[3,2,4,5]), 系统会根据变焦比自动切到
+     * 对应物理镜头: <1x 走超广角, 1x 主摄, >=2x 走长焦。
+     */
+    fun setZoom(ratio: Float) {
+        val cam = boundCamera ?: return
+        val zs = cam.cameraInfo.zoomState.value
+        val minZ = zs?.minZoomRatio ?: 1.0f
+        val maxZ = zs?.maxZoomRatio ?: 1.0f
+        val r = ratio.coerceIn(minZ, maxZ)
+        cam.cameraControl.setZoomRatio(r)
+        currentZoomState.value = r
+        Log.i(TAG, "setZoom -> $r")
+    }
     private fun startCameraWithPreview(pv: PreviewView) {
         if (!checkCameraPermission()) return
 
@@ -208,11 +340,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            // 选择摄像头: 优先用枚举选中的 CameraInfo (支持多摄像头/超广角/长焦/前摄)
+            val cameraSelector = buildCameraSelector()
 
             try {
                 cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+                val cam = cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageAnalysis)
+                boundCamera = cam
+                // 记录是否前摄: 前摄画面水平镜像, 需在检测前翻转
+                isFrontCamera = availableCameras.getOrNull(currentCameraIndex)
+                    ?.lensFacing == CameraSelector.LENS_FACING_FRONT
+                // 发布该摄像头支持的变焦档位 (逻辑多摄靠变焦切换超广角/长焦物理镜头)
+                val zs = cam.cameraInfo.zoomState.value
+                val minZ = zs?.minZoomRatio ?: 1.0f
+                val maxZ = zs?.maxZoomRatio ?: 1.0f
+                val presets = listOf(0.6f, 1.0f, 2.0f, 3.0f, 5.0f, 10.0f)
+                    .filter { it in minZ..maxZ }
+                zoomRatiosState.value = if (presets.isEmpty()) listOf(1.0f) else presets
+                currentZoomState.value = zs?.zoomRatio ?: 1.0f
+                Log.i(TAG, "bound cam front=$isFrontCamera zoom=$minZ~$maxZ presets=${zoomRatiosState.value}")
             } catch (e: Exception) {
                 Log.e(TAG, "Camera bind failed: ${e.message}")
                 state.warningMessage = "相机初始化失败"
@@ -227,29 +373,41 @@ class MainActivity : ComponentActivity() {
         val width = imageProxy.width
         val height = imageProxy.height
 
-        // 自适应内参缩放
-        val scaleX = width.toDouble() / calibData.imageWidth
-        val scaleY = height.toDouble() / calibData.imageHeight
-
-        if (kotlin.math.abs(scaleX - 1.0) > 0.01 || kotlin.math.abs(scaleY - 1.0) > 0.01) {
-            // 缩放内参（如果有标定数据）
-            if (useCalibration) {
-                val cm = calibData.cameraMatrix.copyOf()
-                cm[0] *= scaleX; cm[2] *= scaleX
-                cm[4] *= scaleY; cm[5] *= scaleY
-                cameraMatrix.put(0, 0, *cm)
-            } else {
-                // 默认内参: 近似 60度 FOV
-                val fx = width * 1.2; val fy = height * 1.2
-                cameraMatrix.put(0, 0, fx, 0.0, width / 2.0, 0.0, fy, height / 2.0, 0.0, 0.0, 1.0)
-            }
+        if (useCalibration && calibData.isValid) {
+            // 有真实标定: 按当前分辨率缩放内参
+            val scaleX = width.toDouble() / calibData.imageWidth
+            val scaleY = height.toDouble() / calibData.imageHeight
+            val cm = calibData.cameraMatrix.copyOf()
+            cm[0] *= scaleX; cm[2] *= scaleX
+            cm[4] *= scaleY; cm[5] *= scaleY
+            cameraMatrix.put(0, 0, *cm)
+        } else {
+            // 默认内参: 近似 60° 水平 FOV (fx ≈ width / (2*tan(30°)) ≈ width*0.866)
+            // 变焦会等效放大焦距, 需按变焦比缩放, 否则距离估算随变焦漂移
+            val zoom = currentZoomState.value.toDouble().coerceAtLeast(0.1)
+            val fx = width / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+            val fy = height / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+            cameraMatrix.put(0, 0, fx, 0.0, width / 2.0, 0.0, fy, height / 2.0, 0.0, 0.0, 1.0)
         }
 
         // YUV → Gray (Mat + ByteArray 共用同一份数据)
-        val (gray, grayData) = imageProxyToGray(imageProxy) ?: return
+        var (gray, grayData) = imageProxyToGray(imageProxy) ?: return
         val grayW = imageProxy.width
         val grayH = imageProxy.height
         val timestamp = System.currentTimeMillis()
+
+        // 前摄传感器画面水平镜像, 会导致靶标黑白象限的对角关系反转,
+        // 从而无法通过检测器的对角校验 -> 检测前先水平翻转还原
+        if (isFrontCamera) {
+            val flipped = Mat()
+            org.opencv.core.Core.flip(gray, flipped, 1)
+            gray.release()
+            gray = flipped
+            // grayData 与 Mat 数据需保持一致 (检测器同时使用两者)
+            if (grayData.size >= grayW * grayH) {
+                gray.get(0, 0, grayData)
+            }
+        }
 
         try {
             // 检测

@@ -1,0 +1,9 @@
+﻿List of devices attached
+
+.\platform-tools\adb.exe : adb.exe: no devices/emulators found
+所在位置 行:1 字符: 348
++ ... oding UTF8; .\platform-tools\adb.exe install -r .\android-app\app\bui ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (adb.exe: no devices/emulators found:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 

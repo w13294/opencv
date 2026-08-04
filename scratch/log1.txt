@@ -1,0 +1,1203 @@
+﻿
+I/adbd    ( 9682): in ShellService: am start -n com.example.targettracker/.MainActivity
+I/CamOpt_Service( 3573): notifyActivityStart: intent = Intent { flg=0x10000000 xflg=0x4 cmp=com.example.targettracker/.
+MainActivity }
+I/SecurityManagerService( 3573): isVirtualDisplayActive caller=com.android.shell~2000, target=com.example.targettracker
+~10340~0
+D/AurogonImmobulusMode( 3573): launch app processName = com.example.targettracker uid = 10340
+D/WindowManager( 3573): Collecting in transition 6885: ActivityRecord{155833029 u0 com.example.targettracker/.MainActiv
+ity t-1} init visibleRequested:false dc:null
+I/ActivityStarterImpl( 3573): boost cold start activity for com.example.targettracker
+D/WindowManager( 3573): Collecting in transition 6885: Task{6980b4b #6652 type=standard A=10340:com.example.targettrack
+er} init visibleRequested:false dc:Display{#0 state=ON size=1440x3200 ROTATION_0}
+D/BarFollowAnimation( 3573):  CreateBarRunnable  mTask = Task{6980b4b #6652 type=standard A=10340:com.example.targettra
+cker} mSurfaceControl = Surface(name=Task=6652#114019)/@0xc04f41a currentPid = 3573 currentThread name = BarFollowAnima
+tion Thread currentThread id = 308
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:false isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTa
+sk:null mIsTouchedInCaption:false
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:false isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTa
+sk:null mIsTouchedInCaption:false
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:false isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTa
+sk:null mIsTouchedInCaption:false
+D/MiuiFreeFormManagerService( 3573): onStartActivityInner as = Task{6980b4b #6652 type=standard A=10340:com.example.tar
+gettracker} op = null
+I/ActivityTaskManager( 3573): moveTaskToFront: Task{6980b4b #6652 type=standard A=10340:com.example.targettracker} call
+er trace:com.android.server.wm.TaskDisplayArea.onTaskMoved:461 com.android.server.wm.Task.updateTaskMovement:1762 com.a
+ndroid.server.wm.TaskDisplayArea.positionChildTaskAt:425 com.android.server.wm.TaskDisplayArea.positionChildAt:386 com.
+android.server.wm.Task.moveToFront:6298 com.android.server.wm.Task.moveToFront:6268 com.android.server.wm.ActivityStart
+er.startActivityInner:2491 com.android.server.wm.ActivityStarter.startActivityUnchecked:1989 com.android.server.wm.Acti
+vityStarter.executeRequest:1801 com.android.server.wm.ActivityStarter.execute:1005 
+D/As.ActivityMmReduceLoadHelper( 3573): onTaskMovedToFront: mTopActivityPackageName: com.example.targettracker mTopActi
+vityClassName: com.example.targettracker.MainActivity
+I/WindowManager( 3573): Try to add startingWindow type = STARTING_WINDOW_TYPE_SPLASH_SCREEN this = ActivityRecord{15583
+3029 u0 com.example.targettracker/.MainActivity t6652} mOccludesParent = true preAllowTaskSnapshot = true afterAllowTas
+kSnapshot = true newTask = true taskSwitch = false processRunning = false activityCreated = false activityAllDrawn = fa
+lse isSnapshotCompatible = false snapshotRotation = NaN resolvedTheme = 2131558670 theme = 2131558670
+I/DynamicDDSService( 8119): handleMessage(ACTIVITY_INVOKE{appInfo=com.example.targettracker isFullScreen=}true)
+D/PreStartingManager( 3573): Get background color: ff303030  key: com.example.targettracker_light  containColor: true
+W/DynamicDDSService( 8119): send appNames via QMI[com.example.targettracker]
+D/WindowManager( 3573): Collecting in transition 6885: ActivityRecord{155833029 u0 com.example.targettracker/.MainActiv
+ity t6652} init visibleRequested:false dc:Display{#0 state=ON size=1440x3200 ROTATION_0}
+I/ActivityTaskManager( 3573): START u0 {flg=0x10000000 xflg=0x5 cmp=com.example.targettracker/.MainActivity} with LAUNC
+H_MULTIPLE from uid 2000 from pid 15737 callingPackage com.android.shell (BAL_ALLOW_PERMISSION) result code=0
+I/AppStartScenario( 3573): notifyScenarioChanged: active=true param=Bundle[{uid=10340, name=com.example.targettracker.M
+ainActivity, type=2, preStartProc=false, state=1, processName=com.example.targettracker, packageName=com.example.target
+tracker, appSwitch=true}]
+I/SoScStageCoordinator( 8512): Transition requested:TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=
+0 taskId=6652 effectiveUid=10340 displayId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettr
+acker/.MainActivity } baseActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} topA
+ctivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} origActivity=null realActivity=
+ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} numActivities=1 lastActiveTime=54683838
+4 supportsSplitScreenMultiWindow=true mSoScDisplayMode=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWi
+dth=-1 minHeight=-1 defaultMinSize=200 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@ae99706} topActivityTy
+pe=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 di
+splayCutoutSafeInsets=Rect(0, 169 - 0, 0) topActivityInfo=ActivityInfo{61d51c7 com.example.targettracker.MainActivity} 
+launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isVisible=false isVisibleRequested=false 
+isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActi
+vityStackTransparent=false lastNonFullscreenBounds=Rect(101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp
+=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { t
+opActivityInSizeCompat=false eligibleForLetterboxEducation= false topActivityInMiuiSizeCompat=false isLetterboxEducatio
+nEnabled= false isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed
+= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition
+= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 169 - 1440, 3200) isUserFu
+llscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetter
+boxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} isImmersive=false mTopAc
+tivityRequestOrientation=-2 mStatusBarParent=null mNavBarParent=null mBehindAppLockPkg=null mOriginatingUid=0 isEmbedde
+d=false shouldBeVisible=true isCreatedByOrganizer=false mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecord
+Name=ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity t6652} mTopActivityOrientation=-2 topActivityM
+ainWindowFrame=null}, pipChange = null, remoteTransition = null, displayChange = null, flags = 0, debugId = 6885 } isSo
+ScActive:false triggerTask:TaskInfo{userId=0 taskId=6652 effectiveUid=10340 displayId=0 isRunning=true baseIntent=Inten
+t { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=ComponentInfo{com.example.targettracker/c
+om.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.Ma
+inActivity} origActivity=null realActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivi
+ty} numActivities=1 lastActiveTime=546838384 supportsSplitScreenMultiWindow=true mSoScDisplayMode=-1 supportsMultiWindo
+w=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{android.window.IWindowConta
+inerToken$Stub$Proxy@ae99706} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHo
+stTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 169 - 0, 0) topActivityInfo=ActivityInfo{61d51
+c7 com.example.targettracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=fals
+e isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatur
+eId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(101, 1390 - 1339, 19
+78) capturedLink=null captured
+D/WindowManager( 3573):    ChangeInfo{81297ca container=Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker} flags=0x0}
+D/WindowManager( 3573):    ChangeInfo{a665d3b container=ActivityRecord{155833029 u0 com.example.targettracker/.MainActi
+vity t6652} flags=0x0}
+I/ANDR-PWR-OPT( 2139): GAMEPOWEROPT: sendEvents() 231: Start hint for app com.example.targettracker/com.example.targett
+racker.MainActivity/2, hintID : 4099, hintID hex : 1003 value: -1
+D/GreezeManager( 3573): old mTopAppPackageName = com.miui.home real packagename = com.example.targettracker realuid = 1
+0340
+I/ANDR-PWR-OPT( 2139): PowerAppClassifier: getAppType() 59: checking app [com.example.targettracker] is type 1
+I/ANDR-PWR-OPT( 2139): GAMEPOWEROPT: isGame() 348: com.example.targettracker is Game = 1
+I/AppsFilter( 3573): interaction: PackageSetting{619639f com.android.microdroid.empty_payload/10258} -> PackageSetting{
+8d39217 com.example.targettracker/10340} BLOCKED
+D/MiuiEmbeddingWindow( 3573): blacklistedAppRunningOnPhone: package=com.example.targettrackerisNotProjeciton=true isHav
+ingJeppackDisabledConfig=false isRunningOnPhone=true isAppleConnection=false
+D/MiuiEmbeddingWindow( 3573): MiuiEmbeddingWindowService: updateApplicationInfo for com.example.targettracker, blacklis
+tedAppRunningOnPhone updated: clear
+D/WindowManager( 3573): Collecting in transition 6885: ActivityRecord{155833029 u0 com.example.targettracker/.MainActiv
+ity t6652} init visibleRequested:false dc:Display{#0 state=ON size=1440x3200 ROTATION_0}
+D/WindowManager( 3573):    ChangeInfo{81297ca container=Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker} flags=0x0}
+D/WindowManager( 3573):    ChangeInfo{a665d3b container=ActivityRecord{155833029 u0 com.example.targettracker/.MainActi
+vity t6652} flags=0x0}
+D/KeyguardEditorHelper( 8512): onTopActivityMayChanged, topActivity=ComponentInfo{com.example.targettracker/com.example
+.targettracker.MainActivity}; mState=IDEL
+I/ANDR-PWR-OPT( 2139): GAMEPOWEROPT: sendEvents() 231: Start hint for app com.example.targettracker/com.example.targett
+racker.MainActivity/2, hintID : 4099, hintID hex : 1003 value: -1
+I/ANDR-PWR-OPT( 2139): PowerAppClassifier: getAppType() 59: checking app [com.example.targettracker] is type 1
+I/ANDR-PWR-OPT( 2139): GAMEPOWEROPT: isGame() 348: com.example.targettracker is Game = 1
+D/WindowManager( 3573): isSyncFinished true. ar: ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity t6
+652}
+D/WindowManager( 3573): isSyncFinished true. ar: ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity t6
+652}
+I/SmartPower: com.example.targettracker/10340(0)( 3573): died->visible(29607447ms) R(become visible) adj=-10000.
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:true isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTas
+k:null mIsTouchedInCaption:false
+D/BarFollowAnimation( 3573): onTaskAppearedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targettra
+cker}
+D/WindowManager( 3573): Final targets: [ChangeInfo{81297ca container=Task{6980b4b #6652 type=standard A=10340:com.examp
+le.targettracker} flags=0x10}, ChangeInfo{f5205e9 container=Task{e2dfa19 #1 type=home} flags=0x10}, ChangeInfo{eefb26e 
+container=WallpaperWindowToken{4f12a2a showWhenLocked=false} flags=0x0}]
+I/DynamicIslandService( 3573): elementSurfaceTransition is null for:com.example.targettracker
+D/WindowManager( 3573): Calling onTransitionReady info={id=6885 t=OPEN f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{RemoteToke
+n{b1e719c Task{6980b4b #6652 type=standard A=10340:com.example.targettracker}}} m=OPEN f=NONE leash=Surface(name=Task=6
+652#114019)/@0xc04f41a sb=Rect(0, 0 - 1440, 3200) eb=Rect(0, 0 - 1440, 3200) epz=Point(1440, 3200) d=0 taskParent=-1 v=
+trueMiuiChangeImpl {miuiEmbedding:false, scale:1.0}},{WCT{RemoteToken{a50e88f Task{e2dfa19 #1 type=home}}} m=TO_BACK f=
+SHOW_WALLPAPER leash=Surface(name=Task=1#51)/@0x2472563 sb=Rect(0, 0 - 1440, 3200) eb=Rect(0, 0 - 1440, 3200) epz=Point
+(1440, 3200) d=0 taskParent=-1 v=falseMiuiChangeImpl {miuiEmbedding:false, scale:1.0}},{m=TO_BACK f=IS_WALLPAPER leash=
+Surface(name=WallpaperWindowToken{4f12a2a showWhenLocked=false}#57)/@0xc03f01b sb=Rect(0, 0 - 1440, 3200) eb=Rect(0, 0 
+- 1440, 3200) epz=Point(1440, 3200) d=0 v=falseMiuiChangeImpl {miuiEmbedding:false, scale:1.0}}] mk=[false] noAni=[fals
+e] df=[false] rsa=[false] oa=[false] nc=[0] ho=[false] hla=[false] iSync=[-1]}, mToken=Token{d3c17a5 TransitionRecord{1
+6fa53c id=6885 type=OPEN flags=0x0 c=[
+D/WindowManager( 3573):    ChangeInfo{81297ca container=Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker} flags=0x10}
+D/WindowManager( 3573):    ChangeInfo{a665d3b container=ActivityRecord{155833029 u0 com.example.targettracker/.MainActi
+vity t6652} flags=0x0}
+I/AppStartScenario( 3573): notifyScenarioChanged: active=true param=Bundle[{hostingRecordName={com.example.targettracke
+r/com.example.targettracker.MainActivity}, hostingRecordType=next-top-activity, uid=10340, type=1, state=2, processName
+=com.example.targettracker, packageName=com.example.targettracker}]
+D/IorapForwardingService( 3573): onIntentStarted!! packageName com.example.targettracker; uid:10340
+I/WindowManager( 3573): Allow fixed rotation for not collecting:ActivityRecord{155833029 u0 com.example.targettracker/.
+MainActivity t6652}
+D/WindowManager( 3573): applyFixedRotationTransform ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity
+ t6652} config={0.0 ?mcc0mnc ?localeList ?layoutDir sw384dp w853dp h384dp ?density nrml long ?ldr ?wideColorGamut land 
+?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 3200, 1440) mAppBounds=Rect(0, 0 - 3200, 1440) m
+MaxBounds=Rect(0, 0 - 3200, 1440) mDisplayRotation=ROTATION_90 mWindowingMode=undefined mActivityType=undefined mAlways
+OnTop=undefined mRotation=ROTATION_90 mInSplitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false em
+beddingScale=1.0} ?fontWeightAdjustment/0/0 themeChanged=0 themeChangedFlags=0 display=-1 extraData = Bundle[{}] screen
+Type=-2/0}
+D/DisplayContentStubImpl( 3573): setFixedRotationLaunchingApp 0 prev=null now=ActivityRecord{155833029 u0 com.example.t
+argettracker/.MainActivity t6652} rotation=1
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 1440, 3200), focused=false, 
+oldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.examp
+le.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.examp
+le.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwit
+chDecorViewModel.createWindowDecoration:317 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWin
+SwitchDecorViewModel.onTaskOpening:10 com.android.wm.shell.freeform.FreeformTaskTransitionObserver.onTransitionReady:33
+4 com.android.wm.shell.transition.Transitions.dispatchReady:241 com.android.wm.shell.transition.Transitions.onTransitio
+nReady:280 
+W/RecentsModel( 7806): getRunningTask   taskInfo=TaskInfo{userId=0 taskId=6652 effectiveUid=10340 displayId=0 isRunning
+=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=ComponentInfo{com.e
+xample.targettracker/com.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.targettracker/com.ex
+ample.targettracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.targettracker/com.example.ta
+rgettracker.MainActivity} numActivities=1 lastActiveTime=546838400 supportsSplitScreenMultiWindow=true mSoScDisplayMode
+=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{andro
+id.window.IWindowContainerToken$Stub$Proxy@6915aa8} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays
+=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 169 - 0, 0) topActivityI
+nfo=ActivityInfo{b72f9c1 com.example.targettracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTa
+skId=-1 isFocused=false isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=nu
+ll displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rect(
+101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBrow
+serEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEducati
+on= false topActivityInMiuiSizeCompat=false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eligi
+bleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLette
+rboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHe
+ight=-1 topActivityAppBounds=Rect(169, 0 - 3200, 1440) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverride
+Enabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskInfo
+ { freeformCameraCompatMode=inactive}} isImmersive=false mTopActivityRequestOrientation=6 mStatusBarParent=null mNavBar
+Parent=null mBehindAppLockPkg=null mOriginatingUid=0 isEmbedded=false shouldBeVisible=true isCreatedByOrganizer=false m
+IsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{155833029 u0 com.example.targettracke
+r/.MainActivity t6652} mTopActivityOrientation=6 topActivityMainWindowFrame=null}
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+E/ActivityManagerWrapper( 7806):  mainTaskId=6652   userId=0   windowMode=1   isExcludedFromRecents=false   baseIntent=
+Intent { act=null flag=268435456 cmp=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} }
+D/RecentsTaskLoader( 7806): reloadTasksData [TaskKey{id=6652, stackId=0, baseIntent=Intent { flg=0x10000000 cmp=com.exa
+mple.targettracker/.MainActivity }, userId=0, lastActiveTime=546838384, windowingMode=1, isThumbnailBlur=false, isAcces
+sLocked=false, isScreening=false, topActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAct
+ivity}, mHashCode=199093284}, title=靶标追踪, titleDescription=靶标追踪, bounds=null, isLaunchTarget=true, isStackTask=true, is
+SystemApp=false, isDockable=true, baseActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAc
+tivity}, isLocked=false, mNeedHide=false, hasMultipleTasks=false, cti1Key=, cti2Key=, cti1Task=, cti2Task=] 
+E/SystemUtils( 8880): appIsTopAndXSpace: package com.example.targettracker, result false
+D/RelayAppLocalHelper( 8880): both hide, no need notify devices. check com.example.targettracker
+I/AppStartScenario( 3573): notifyScenarioChanged: active=true param=Bundle[{hostingRecordName={com.example.targettracke
+r/com.example.targettracker.MainActivity}, hostingRecordType=next-top-activity, pid=20233, uid=10340, type=1, state=3, 
+processName=com.example.targettracker, packageName=com.example.targettracker}]
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+D/IorapForwardingService( 3573): onProcessStart!! pid:20233 processname:com.example.targettracker
+I/ActivityManager( 3573): Start proc 20233:com.example.targettracker/u0a340 for next-top-activity {com.example.targettr
+acker/com.example.targettracker.MainActivity} caller=com.android.shell
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+E/Zygote  (20233): process_name_ptr:20233 com.example.targettracker
+E/Zygote  (20233): SetMemoryProtected process_name_ptr:20233 com.example.targettracker
+I/LetterboxSurface( 3573): applySurfaceChanges created ActivityRecord{155833029 u0 com.example.targettracker/.MainActiv
+ity t6652} left Surface(name=Letterbox - left#114032)/@0x618bce7 false com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): current status bar control target is : Window{167a146 u0 Splash Screen com.example.targett
+racker}
+D/WindowManager( 3573): updateSystemBarAttributes displayId: 0 Window{167a146 u0 Splash Screen com.example.targettracke
+r} winAppearance=
+D/WmSystemUiDebug( 3573): on system bar attributes changed displayId=0 appearance= appearanceRegions=[AppearanceRegion{
+ bounds=[0,0][3200,1440]}, AppearanceRegion{LIGHT_STATUS_BARS bounds=[0,0][1440,3200]}] navbarColorManagedByIme=false b
+ehavior=1 requestedVisibleTypes=[statusBars navigationBars captionBar systemGestures mandatorySystemGestures tappableEl
+ement displayCutout windowDecor systemOverlays] packageName=com.example.targettracker letterboxDetails=[]
+I/e.targettracker(20233): Late-enabling -Xcheck:jni
+D/CoreBackPreview( 3573): Window{167a146 u0 Splash Screen com.example.targettracker}: Setting back callback OnBackInvok
+edCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@a6fb6c4, mPriority=0, mIsAnimationCallback=fa
+lse, mOverrideBehavior=0}
+W/RecentsModel( 7806): getRunningTask   taskInfo=TaskInfo{userId=0 taskId=6652 effectiveUid=10340 displayId=0 isRunning
+=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=ComponentInfo{com.e
+xample.targettracker/com.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.targettracker/com.ex
+ample.targettracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.targettracker/com.example.ta
+rgettracker.MainActivity} numActivities=1 lastActiveTime=546838410 supportsSplitScreenMultiWindow=true mSoScDisplayMode
+=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{andro
+id.window.IWindowContainerToken$Stub$Proxy@91c1ff9} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays
+=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(169, 0 - 0, 1760) topActivi
+tyInfo=ActivityInfo{64dab3e com.example.targettracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) paren
+tTaskId=-1 isFocused=false isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId
+=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Re
+ct(101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInB
+rowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEduc
+ation= false topActivityInMiuiSizeCompat=false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false el
+igibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLe
+tterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterbo
+xHeight=-1 topActivityAppBounds=Rect(169, 0 - 3200, 1440) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverr
+ideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskI
+nfo { freeformCameraCompatMode=inactive}} isImmersive=false mTopActivityRequestOrientation=6 mStatusBarParent=null mNav
+BarParent=null mBehindAppLockPkg=null mOriginatingUid=0 isEmbedded=false shouldBeVisible=true isCreatedByOrganizer=fals
+e mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{155833029 u0 com.example.targettra
+cker/.MainActivity t6652} mTopActivityOrientation=6 topActivityMainWindowFrame=null}
+D/VRI[targettracker]( 8512): vri.Setup new sync=wmsSync-VRI[targettracker]#77
+D/WindowTransitionCompat( 7806):  printLeash::taskInfo = TaskInfo{userId=0 taskId=6652 effectiveUid=10340 displayId=0 i
+sRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=ComponentIn
+fo{com.example.targettracker/com.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.targettracke
+r/com.example.targettracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.targettracker/com.ex
+ample.targettracker.MainActivity} numActivities=1 lastActiveTime=546838384 supportsSplitScreenMultiWindow=true mSoScDis
+playMode=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=W
+CT{android.window.IWindowContainerToken$Stub$Proxy@c24bdd8} topActivityType=1 pictureInPictureParams=null shouldDockBig
+Overlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 169 - 0, 0) topA
+ctivityInfo=ActivityInfo{a8cd531 com.example.targettracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) 
+parentTaskId=-1 isFocused=false isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false lo
+cusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBoun
+ds=Rect(101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOp
+enInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterbo
+xEducation= false topActivityInMiuiSizeCompat=false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= fal
+se eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActiv
+ityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLet
+terboxHeight=-1 topActivityAppBounds=Rect(0, 169 - 1440, 3200) isUserFullscreenOverrideEnabled=false isSystemFullscreen
+OverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompat
+TaskInfo { freeformCameraCompatMode=inactive}} isImmersive=false mTopActivityRequestOrientation=6 mStatusBarParent=null
+ mNavBarParent=null mBehindAppLockPkg=null mOriginatingUid=0 isEmbedded=false shouldBeVisible=true isCreatedByOrganizer
+=false mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{155833029 u0 com.example.targ
+ettracker/.MainActivity t6652} mTopActivityOrientation=6 topActivityMainWindowFrame=null}
+D/TransitionUtil( 7806): get key :ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity}#6652
+E/ActivityManagerWrapper( 7806):  mainTaskId=6652   userId=0   windowMode=1   isExcludedFromRecents=false   baseIntent=
+Intent { act=null flag=268435456 cmp=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} }
+D/RecentsTaskLoader( 7806): reloadTasksData [TaskKey{id=6652, stackId=0, baseIntent=Intent { flg=0x10000000 cmp=com.exa
+mple.targettracker/.MainActivity }, userId=0, lastActiveTime=546838384, windowingMode=1, isThumbnailBlur=false, isAcces
+sLocked=false, isScreening=false, topActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAct
+ivity}, mHashCode=199093284}, title=靶标追踪, titleDescription=靶标追踪, bounds=null, isLaunchTarget=true, isStackTask=true, is
+SystemApp=false, isDockable=true, baseActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAc
+tivity}, isLocked=false, mNeedHide=false, hasMultipleTasks=false, cti1Key=, cti2Key=, cti1Task=, cti2Task=] 
+W/SQLiteLog(14981): (28) double-quoted string literal: "com.example.targettracker"
+D/VRI[targettracker]( 8512): vri.reportDrawFinished 0 0 Rect(169, 0 - 3200, 1440)
+D/WindowManager( 3573): Finishing drawing starting window: Window{167a146 u0 Splash Screen com.example.targettracker} m
+DrawState: DRAW_PENDING
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/e.targettracker(20233): Using CollectorTypeCC GC.
+W/e.targettracker(20233): Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. 
+serviceName: activity
+D/SurfaceFlinger( 2355): updateSnapshot(Splash Screen com.example.targettracker#114031) transformHint is updated from 1
+28 to 4.
+D/MiuiForceVkService( 3573): shouldUseVk, pkg=com.example.targettracker useVk 0
+I/AppStartScenario( 3573): notifyScenarioChanged: active=true param=Bundle[{applicationThread=android.os.BinderProxy@20
+a3c63, hostingRecordName={com.example.targettracker/com.example.targettracker.MainActivity}, hostingRecordType=next-top
+-activity, pid=20233, uid=10340, type=1, state=4, processName=com.example.targettracker, packageName=com.example.target
+tracker, applicationThreadExt=android.os.BinderProxy@4541060}]
+I/WindowManager( 3573): wms.showSurfaceRobustly mWin:Window{167a146 u0 Splash Screen com.example.targettracker} in Surf
+ace(name=Splash Screen com.example.targettracker#114031)/@0x93d54d0
+D/SchedBoost( 3573): com.example.targettracker already boosted, skip boost priority
+I/RENDER_TURBO(20233): onActivityThreadCreate not in white list, pkg=com.example.targettracker, type=xuanyuan
+D/VA_ActivityUtils(32236): getTopActivity packageName:ComponentInfo{com.example.targettracker/com.example.targettracker
+.MainActivity}
+D/VA_AppStateWatcher(32236): currentPkgName:com.example.targettracker, className:com.example.targettracker.MainActivity
+, lastPkgName:com.miui.home
+D/AppLifecycleObserver(28211): onReceive: com.example.targettracker FOREGROUND
+D/VA_TopAppChangedObserver(32236): onAppChanged...com.example.targettracker
+I/GameEventTag(28211): notify start com.example.targettracker event=3
+I/VA__LAS_LocalAppSearch(32236): onTopAppChanged: com.example.targettracker
+I/VA_HybridLifecycleListener(32236): onTopAppChanged: newApp=com.example.targettracker from=com.miui.home fromPkg=com.e
+xample.targettracker
+D/PkgUtils(28211): getApplicationInfo packageName:com.example.targettracker, flags:128 applicationInfo:ApplicationInfo{
+6ea8949 com.example.targettracker} needSecondSpace:false
+I/GameEventTag(28211): queryGameName pkg= com.example.targettracker gameName=Unknown
+I/GameEventTag(28211): notify failed, pkg=com.example.targettracker event=3 not game
+D/ActivityThread(20233): setEmbeddedParam packageName=com.example.targettracker processName=com.example.targettracker i
+sEmbedded=false isIsolated=false
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/DynamicIslandTopActivityController( 8512): fullscreen: com.example.targettracker
+D/DynamicIslandController( 8512): onTopActivityChanged: ComponentInfo{com.example.targettracker/com.example.targettrack
+er.MainActivity}
+D/DynamicIslandWindowViewController( 8512): onTopActivityChange: topActivity ComponentInfo{com.example.targettracker/co
+m.example.targettracker.MainActivity}, inSmallWindow false, isSupportPip false, isFocus false fullScreenPkg com.example
+.targettracker
+D/DynamicIslandSafeguardsController( 8512): cancelDelayEnterApp com.example.targettracker com.tencent.qqmusic
+D/DynamicIslandSafeguardsController( 8512): cancelDelayEnterMiniWindow com.example.targettracker com.example.targettrac
+ker null
+D/DynamicIslandSafeguardsController( 8512): cancelDelayExitApp com.example.targettracker com.miui.home
+D/DynamicIslandSafeguardsController( 8512): cancelDelayExitMiniWindow com.example.targettracker null
+D/DynamicIslandSafeguardsController( 8512): delayExitApp com.example.targettracker
+D/DynamicIslandSafeguardsController( 8512): cancelDelayExitApp com.example.targettracker com.example.targettracker
+W/RecentsModel( 7806): getRunningTask   taskInfo=TaskInfo{userId=0 taskId=6652 effectiveUid=10340 displayId=0 isRunning
+=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=ComponentInfo{com.e
+xample.targettracker/com.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.targettracker/com.ex
+ample.targettracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.targettracker/com.example.ta
+rgettracker.MainActivity} numActivities=1 lastActiveTime=546838494 supportsSplitScreenMultiWindow=true mSoScDisplayMode
+=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=200 token=WCT{andro
+id.window.IWindowContainerToken$Stub$Proxy@81f62ab} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays
+=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(169, 0 - 0, 1760) topActivi
+tyInfo=ActivityInfo{af4d08 com.example.targettracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parent
+TaskId=-1 isFocused=false isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleeping=false locusId=
+null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=Rec
+t(101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-9 topActivityRequestOpenInBr
+owserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibleForLetterboxEduca
+tion= false topActivityInMiuiSizeCompat=false isLetterboxEducationEnabled= false isLetterboxDoubleTapEnabled= false eli
+gibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLet
+terboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterbox
+Height=-1 topActivityAppBounds=Rect(169, 0 - 3200, 1440) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverri
+deEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=CameraCompatTaskIn
+fo { freeformCameraCompatMode=inactive}} isImmersive=false mTopActivityRequestOrientation=6 mStatusBarParent=null mNavB
+arParent=null mBehindAppLockPkg=null mOriginatingUid=0 isEmbedded=false shouldBeVisible=true isCreatedByOrganizer=false
+ mIsCastMode=false mTopActivityMediaSize=null mTopActivityRecordName=ActivityRecord{155833029 u0 com.example.targettrac
+ker/.MainActivity t6652} mTopActivityOrientation=6 topActivityMainWindowFrame=null}
+E/SystemUtils( 8880): appIsTopAndXSpace: package com.example.targettracker, result false
+E/ActivityManagerWrapper( 7806):  mainTaskId=6652   userId=0   windowMode=1   isExcludedFromRecents=false   baseIntent=
+Intent { act=null flag=268435456 cmp=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} }
+D/RecentsTaskLoader( 7806): reloadTasksData [TaskKey{id=6652, stackId=0, baseIntent=Intent { flg=0x10000000 cmp=com.exa
+mple.targettracker/.MainActivity }, userId=0, lastActiveTime=546838384, windowingMode=1, isThumbnailBlur=false, isAcces
+sLocked=false, isScreening=false, topActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAct
+ivity}, mHashCode=199093284}, title=靶标追踪, titleDescription=靶标追踪, bounds=null, isLaunchTarget=true, isStackTask=true, is
+SystemApp=false, isDockable=true, baseActivity=ComponentInfo{com.example.targettracker/com.example.targettracker.MainAc
+tivity}, isLocked=false, mNeedHide=false, hasMultipleTasks=false, cti1Key=, cti2Key=, cti1Task=, cti2Task=] 
+D/DynamicIslandSafeguardsController( 8512): delayExitApp: com.example.targettracker com.example.targettracker count = 0
+D/nativeloader(20233): Configuring clns-10 for other apk /data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.targettracker
+-B0pLURqOAJ_TEeLct5QPRg==/base.apk. target_sdk_version=34, uses_libraries=, library_path=/data/app/~~mFv7t-v-hzRjnReVSB
+XwlQ==/com.example.targettracker-B0pLURqOAJ_TEeLct5QPRg==/lib/arm64:/data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.ta
+rgettracker-B0pLURqOAJ_TEeLct5QPRg==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.example
+.targettracker
+I/e.targettracker(20233): AssetManager2(0xb40000769ea67538) locale list changing from [] to [zh-CN]
+V/GraphicsEnvironment(20233): com.example.targettracker is not listed in per-application setting
+V/GraphicsEnvironment(20233): com.example.targettracker is not listed in ANGLE allowlist or settings, returning default
+D/ResMonitorStub(20233): The current process type is: third_party_app, process name is: com.example.targettracker
+I/ForceDarkHelperStubImpl(20233): initialize for com.example.targettracker , ForceDarkOrigin
+D/nativeloader(20233): Load /data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.targettracker-B0pLURqOAJ_TEeLct5QPRg==/lib
+/arm64/libopencv_java4.so using class loader ns clns-10 (caller=/data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.target
+tracker-B0pLURqOAJ_TEeLct5QPRg==/base.apk!classes7.dex): ok
+I/TargetTrackerApp(20233): OpenCV native library loaded successfully
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:true isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTas
+k:null mIsTouchedInCaption:false
+D/ATMSImpl( 3573): Notify ticket snatching mode scenario package is com.example.targettracker
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:true isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTas
+k:null mIsTouchedInCaption:false
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 1440, 3200), focused=false, 
+oldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.examp
+le.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.examp
+le.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.decoration
+.MiuiDecorationController.relayout:4 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitchD
+ecorViewModel.onTaskInfoChanged:18 com.android.wm.shell.multitasking.common.taskmanager.MultiTaskingTaskListener.onTask
+InfoChanged:47 com.android.wm.shell.ShellTaskOrganizer.onTaskInfoChanged:136 android.window.TaskOrganizer$1.lambda$onTa
+skInfoChanged$6:300 
+I/CamOpt_Adapter( 3573): onForegroundInfoChanged: ForegroundInfo{mForegroundPackageName='com.example.targettracker', mF
+oregroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLastFore
+groundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.example.ta
+rgettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+I/CamOpt_Service( 3573): onForegroundInfoChanged: ForegroundInfo{mForegroundPackageName='com.example.targettracker', mF
+oregroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLastFore
+groundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.example.ta
+rgettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+I/QuickScannerController( 3573): onForegroundInfoChanged. packageName:com.example.targettracker
+D/MiuiIntegratedMemorySwap( 3573): uid:10340, packageName: com.example.targettracker
+I/CameraMind(10317): [InfoCollector]New FontApp com.example.targettracker/com.example.targettracker.MainActivity/0 RESU
+MED
+D/e.targettracker(20233): blurUtils, initBackgroundBlurMinInterval processName(com.example.targettracker), inWhiteLists
+(0)
+I/CameraMind(10317): [RuleMap]top : com.example.targettracker/com.example.targettracker.MainActivity
+D/PerfEngineController(15002): ForegroundInfo{mForegroundPackageName='com.example.targettracker', mForegroundUid=10340,
+ mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLastForegroundUid=10147, mL
+astForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.example.targettracker', mMult
+iWindowForegroundUid=10340, mFlags=1}
+I/CameraMind(10317): ======================AppSwitch#com.example.targettracker/com.example.targettracker.MainActivity==
+=========================
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+I/CameraActivitySceneMode( 3573): decideSceneMode: ActivityStateChange activityName = com.example.targettracker.MainAct
+ivity, displayId = 0, state = 2
+D/RecentsImpl( 7806): onForegroundChanged, foregroundPackageName=com.example.targettracker
+D/EventReceiver( 3573): foregroundChange uid  uid=10340 pkg=com.example.targettracker
+I/e.targettracker(20233): AssetManager2(0xb40000769ea64978) locale list changing from [] to [zh-CN]
+D/HyperComm_AppMonitor( 8302): onForegroundInfoChanged: foregroundInfo = ForegroundInfo{mForegroundPackageName='com.exa
+mple.targettracker', mForegroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='co
+m.miui.home', mLastForegroundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPack
+ageName='com.example.targettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+I/MiSensorServiceImpl( 3573): updateForegroundAppState: pkg=com.example.targettracker, uid=10340, opResult=0, isForegro
+undMode=0
+I/ProcessMonitor(13266): onForegroundInfoChanged: ForegroundInfo{mForegroundPackageName='com.example.targettracker', mF
+oregroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLastFore
+groundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.example.ta
+rgettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+D/BluetoothLatencyMode( 8092): ForegroundInfo{mForegroundPackageName='com.example.targettracker', mForegroundUid=10340,
+ mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLastForegroundUid=10147, mL
+astForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.example.targettracker', mMult
+iWindowForegroundUid=10340, mFlags=1}
+D/RelayAppLocalHelper( 8880): onForegroundInfoChanged: ForegroundInfo{mForegroundPackageName='com.example.targettracker
+', mForegroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', mLas
+tForegroundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.examp
+le.targettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+I/GST     (15059): forePkg: com.example.targettracker, preForePkg: com.miui.home
+D/VENUS_GAMEAI_START_GameAiStartManager(15059): venusGameAiSupportApps is not monitor packageName=com.example.targettra
+cker
+E/RecentAppsManager( 8880): com.example.targettracker can't be added to recent list!!
+I/GameBoosterService(13266): onForegroundInfoChanged: Cur=com.example.targettracker	 last=com.miui.home
+D/GameBoosterService(13266): onGameStatusChange foreground:ForegroundInfo{mForegroundPackageName='com.example.targettra
+cker', mForegroundUid=10340, mForegroundPid=20233, mForegroundDisplayId=0, mLastForegroundPackageName='com.miui.home', 
+mLastForegroundUid=10147, mLastForegroundPid=7806, mLastForegroundDisplayId=0, mMultiWindowForegroundPackageName='com.e
+xample.targettracker', mMultiWindowForegroundUid=10340, mFlags=1}
+E/SystemUtils( 8880): appIsTopAndXSpace: package com.example.targettracker, result false
+E/SuggestManager(13266): openApp name = com.example.targettracker
+D/MI-SF   ( 2355): updateScene: module = 258 (TpIdle), value = 0, pkg = com.example.targettracker, Vrr = 1, mSetTpIdleF
+lag = 1
+D/NetworkMetricsController( 8433): processUidChangeEvent :activity is:ComponentInfo{com.example.targettracker/com.examp
+le.targettracker.MainActivity}
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:true isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTas
+k:null mIsTouchedInCaption:false
+D/vulkan  (20233): searching for layers in '/data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.targettracker-B0pLURqOAJ_T
+EeLct5QPRg==/lib/arm64'
+D/vulkan  (20233): searching for layers in '/data/app/~~mFv7t-v-hzRjnReVSBXwlQ==/com.example.targettracker-B0pLURqOAJ_T
+EeLct5QPRg==/base.apk!/lib/arm64-v8a'
+I/e.targettracker(20233): AssetManager2(0xb40000769ea58df8) locale list changing from [] to [zh-CN]
+I/qspmHal ( 2193): gpuProfName:com.example.targettracker-gpu - gpu prof_info.path:/data/vendor/gaming/com.example.targe
+ttracker-gpu
+D/Activity(20233): Activity = ActivityInfo{32f2517 com.example.targettracker.MainActivity}, Resume onConfigurationChang
+ed = {1.0 460mcc?mnc [zh_CN] ldltr sw384dp w808dp h384dp 600dpi nrml long hdr widecg land finger -keyb/v/h -nav/h winCo
+nfig={ mBounds=Rect(0, 0 - 3200, 1440) mAppBounds=Rect(169, 0 - 3200, 1440) mMaxBounds=Rect(0, 0 - 3200, 1440) mDisplay
+Rotation=ROTATION_90 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_90 mInS
+plitScreen=false letterBoxed=false foScaled=false isSpecificEmbedded=false embeddingScale=1.0} s.3 fontWeightAdjustment
+=0/d/o themeChanged=0 themeChangedFlags=0 display=0 extraData = Bundle[{}] screenType=0/o}
+I/AdrenoVK-0(20233): Process Name        : com.example.targettracker
+I/ContentCatcher(20233): SettingTrigger : register screen QA status observer com.example.targettracker.MainActivity
+I/ContentCatcher(20233): SettingTrigger : register global collect status observer com.example.targettracker.MainActivit
+y
+I/ContentCatcher(20233): SettingTrigger : registerUIAgentListener com.example.targettracker.MainActivity, uid:10340
+I/DataHub ( 3573): registerUIAgentListener packageName: com.example.targettracker~10340, client:miui.security.IUIAgentI
+nteractionClient$Stub$Proxy@dd17262
+I/RemoteCallbackList( 3573): register success, put callback for com.example.targettracker~10340
+D/e.targettracker(20233): MiuiProcessManagerServiceStub setSchedFifo
+D/IorapForwardingService( 3573): onRenderThread! tid:15796 uid:10340 pkn:com.example.targettracker
+D/InsetsController(20233): com.example.targettracker/com.example.targettracker.MainActivity hide: statusBars captionBar
+ android.view.InsetsController@2b93ad2 android.view.InsetsController.applyAnimation:2241 android.view.InsetsController.
+applyAnimation:2212 android.view.InsetsController.hide:1439 android.view.InsetsController.hide:1349 android.view.ViewRo
+otImpl.controlInsetsForCompatibility:4456 android.view.ViewRootImpl.setView:2438 
+D/services(28211): [XMS][observer] ActivityObserver activityResumed packageName: com.example.targettracker
+D/RecentsImpl( 7806): mActivityStateObserver com.example.targettracker.MainActivity
+W/RecentsImpl( 7806): updateGestureWindowVisibleImpl, className=com.example.targettracker.MainActivity
+D/auth    (28211): [XMS][Auth] ActivityObserver activityResumed packageName: com.example.targettracker
+I/travelService_ActivityObserverUtils(25211): activityResumed ComponentInfo{com.example.targettracker/com.example.targe
+ttracker.MainActivity}
+I/VA_ActivityStateHelper(32236): activityResumed componentName ComponentInfo{com.example.targettracker/com.example.targ
+ettracker.MainActivity}
+I/ActivityObserverUtil(25211): activityResumed ComponentInfo{com.example.targettracker/com.example.targettracker.MainAc
+tivity}
+I/TopActivityMonitor(25211): send TopActivityChangeEvent=TopActivityChangeEvent(prev=ComponentInfo{com.miui.home/com.mi
+ui.home.launcher.Launcher}, current=ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity},app
+Changed=true)
+I/XMSF-actMonitor_MonitorManager( 7180): onActivityResumed: ActivityInfo{name='com.example.targettracker.MainActivity',
+ pkg='com.example.targettracker', callerPkg='null', windowMode=-1, displayId=0, appBounds=Rect(169, 0 - 3200, 1440), du
+ration=-1},activityInfoQueue:30,curMonitorStrategy=
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 1440, 3200), focused=true, o
+ldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.exampl
+e.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.exampl
+e.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.decoration.
+MiuiDecorationController.relayout:4 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitchDe
+corViewModel.onTaskInfoChanged:18 com.android.wm.shell.multitasking.common.taskmanager.MultiTaskingTaskListener.onTaskI
+nfoChanged:47 com.android.wm.shell.ShellTaskOrganizer.onTaskInfoChanged:136 android.window.TaskOrganizer$1.lambda$onTas
+kInfoChanged$6:300 
+D/MiuiFreeformModeController( 8512): onFocusTaskChanged taskInfo: TaskInfo{userId=0 taskId=6652 effectiveUid=10340 disp
+layId=0 isRunning=true baseIntent=Intent { flg=0x10000000 cmp=com.example.targettracker/.MainActivity } baseActivity=Co
+mponentInfo{com.example.targettracker/com.example.targettracker.MainActivity} topActivity=ComponentInfo{com.example.tar
+gettracker/com.example.targettracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.example.targettrack
+er/com.example.targettracker.MainActivity} numActivities=1 lastActiveTime=546838657 supportsSplitScreenMultiWindow=true
+ mSoScDisplayMode=-1 supportsMultiWindow=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=20
+0 token=WCT{android.window.IWindowContainerToken$Stub$Proxy@15da7fd} topActivityType=1 pictureInPictureParams=null shou
+ldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(169, 0 - 0
+, 1760) topActivityInfo=ActivityInfo{8bdccf2 com.example.targettracker.MainActivity} launchCookies=[] positionInParent=
+Point(0, 0) parentTaskId=-1 isFocused=true isVisible=true isVisibleRequested=true isTopActivityNoDisplay=false isSleepi
+ng=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFul
+lscreenBounds=Rect(101, 1390 - 1339, 1978) capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=-14 topActiv
+ityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false eligibl
+eForLetterboxEducation= false topActivityInMiuiSizeCompat=false isLetterboxEducationEnabled= false isLetterboxDoubleTap
+Enabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= fa
+lse topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 to
+pActivityLetterboxHeight=-1 topActivityAppBounds=Rect(169, 0 - 3200, 1440) isUserFullscreenOverrideEnabled=false isSyst
+emFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null cameraCompatTaskInfo=
+CameraCompatTaskInfo { freeformCameraCompatMode=inactive}} isImmersive=false mTopActivityRequestOrientation=6 mStatusBa
+rParent=Surface(name=StatusBar Container of Task = 6652#114020)/@0x2173fa7 mNavBarParent=null mBehindAppLockPkg=null mO
+riginatingUid=0 isEmbedded=false shouldBeVisible=true isCreatedByOrganizer=false mIsCastMode=false mTopActivityMediaSiz
+e=null mTopActivityRecordName=ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity t6652} mTopActivityOr
+ientation=6 topActivityMainWindowFrame=null}
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+D/DecorViewImmersiveImpl(20233): onAttachedToWindow. pkg: com.example.targettracker
+D/DecorViewImmersiveImpl(20233): getWindowType: 1 title:com.example.targettracker/com.example.targettracker.MainActivit
+y
+D/MiuiNBIManagerImpl(20233): init success, pkgName=com.example.targettracker mIsNBIEnable=false mDisableVersionCode=-1 
+mActivityRulesSize=0
+W/e.targettracker(20233): Method boolean androidx.compose.runtime.snapshots.SnapshotStateList.conditionalUpdate(boolean
+, kotlin.jvm.functions.Function1) failed lock verification and will run slower.
+W/e.targettracker(20233): Common causes for lock verification issues are non-optimized dex code
+W/e.targettracker(20233): and incorrect proguard optimizations.
+W/e.targettracker(20233): Method boolean androidx.compose.runtime.snapshots.SnapshotStateList.conditionalUpdate$default
+(androidx.compose.runtime.snapshots.SnapshotStateList, boolean, kotlin.jvm.functions.Function1, int, java.lang.Object) 
+failed lock verification and will run slower.
+W/e.targettracker(20233): Method java.lang.Object androidx.compose.runtime.snapshots.SnapshotStateList.mutate(kotlin.jv
+m.functions.Function1) failed lock verification and will run slower.
+W/e.targettracker(20233): Method void androidx.compose.runtime.snapshots.SnapshotStateList.update(boolean, kotlin.jvm.f
+unctions.Function1) failed lock verification and will run slower.
+W/e.targettracker(20233): Method void androidx.compose.runtime.snapshots.SnapshotStateList.update$default(androidx.comp
+ose.runtime.snapshots.SnapshotStateList, boolean, kotlin.jvm.functions.Function1, int, java.lang.Object) failed lock ve
+rification and will run slower.
+D/CameraX (20233): QuirkSettings from app metadata: null
+D/CameraX (20233): QuirkSettings by default: QuirkSettings{enabledWhenDeviceHasQuirk=true, forceEnabledQuirks=[], force
+DisabledQuirks=[]}
+I/MCAM_MiviInfoContentProvider(30844): call:getCameraControllerInfo pkg:com.example.targettracker
+D/MCAM_XMSAuth(30844): auth E com.example.targettracker
+I/ConnectionInfo(30844): [XMS][SDK_BASE_VERSION: 1.0.9] binder call invoke success source: com.xiaomi.xms.auth.IAuthSer
+vice$Stub$Proxy@e0c818, method: public abstract void com.xiaomi.xms.auth.IAuthService.auth(android.os.Bundle,com.xiaomi
+.xms.auth.IAuthServiceCallback) throws android.os.RemoteException, args: [Bundle[{package_name=com.example.targettracke
+r, auth_sdk_version_name=1.0.7, scope=20024}], com.xiaomi.xms.authconnect.AuthConnectManager$1@73cb271], result: null, 
+serviceName: auth
+I/MCAM_MiViSDKUtil(30844): hasAuthXMS cost:1 pkg:com.example.targettracker
+D/MCAM_MiviInfoContentProvider(30844): Get controller info pkg:com.example.targettracker xms:false
+D/PkgUtils(28211): getApplicationInfo packageName:com.example.targettracker, flags:128 applicationInfo:ApplicationInfo{
+2d64f6f com.example.targettracker} needSecondSpace:true
+D/PkgUtils(28211): getCurrentSpacePackageInfo packageName:com.example.targettracker, flags:0 packageInfo:PackageInfo{bc
+97105 com.example.targettracker} needSecondSpace:true
+D/auth    (28211): [XMS][Auth] auth session: com.example.targettracker 20024 0
+D/auth    (28211): [XMS][Auth] fetch auth params: HttpAuthParams(active=true, pkgInfos=[HttpPkgInfo(packageName=com.exa
+mple.targettracker, debug=false, clientId=null, appType=0)], sdsData=eyJoYXNoIjoiZTgxMjJhYjBmMDQ4ZjM2YWQzMTYwM2E2NGQzZW
+I2MDE4YjVjMzJiNyIsInBhY2thZ2VOYW1lIjoiY29tLnhpYW9taS54bXNmIiwiYXBwU2lnbiI6IjdCNkRDNzA3OUMzNDczOUNFODExNTk3MTlGQjVFQjYxR
+DJBMDMyMjUiLCJub25jZSI6Ijd0Zm9lSHRNdkg4QnhpZGIiLCJ0elRva2VuIjoibDlGcUdXU2lEQzB6UGRSdG0rc1ZcL0VoNlAzd0lsZGVqTDVoSlNEZXlo
+STZNdWIyMkE4NThqM0dSbVJyaGlYSVlhcG9kbjNiNWZhVDBmR1o2aVZIdEhNTmRGQTJwTnh0dFJqTmhFekdPd05qeFdcL2pyODlPa1wvRFdKK3pST0EyOTk
+wZGowOE9NajkzOEFWWUVYcWJiYlc0N1pIaExGYlRxcVh6ZEdOc21TUEJZVW0rUFgyeDNCVmlVanZYWlFHVjAzQWI2YWFoS3lERFJzTG45eFlXcTFZUlVhK2
+RzSDFSMUVMcll5MkJ6QUJRTVliMW5HZWpLQ0x2VFRpY1wvUmlEZnF6Qm1ZaEVqc1NYYlwvZWRub3pDWkhcLzhxNDJrRXhraHA5RXVHZGViREtcL2JiWDF3N
+1FGc3V4S2FBZUxiZjBidlNlTU9zQWhXaVwvWGNXR0wwS29IY3dqVExKVWVoM3lPOHNER1NUYlRQQlR1T0ZqazQyXC9cL25takxWZXZGZFdtQkM0NUFxYUlP
+NVNYMEJieHVBV2VDeWY5cFRFd09pV3NrUzBESXc5MnE4clpmWEJxbFZqOWpmMTRmT2F3SVwvYlJyaUdlM1RpTjcwTlo1bXR6Q2hmOWQ0NUdWcnFrWG9kK3N
+Ha2NFTk1jWXB6cVBseXdqZHpqRm5nM0czUk15WUI2YjU1ZVwvVDYySGMzMDc5UmxWMU44eEYwZWgwZ3dpakVTTmdUQXNDc05vOVR4MEpTczdRbDNtalI3YU
+ZFUnI1YVl4aml6clVNd3FQODF5XC9HVjRQM0Y5TDhmTkU4Z0owNmwwb3FUSFV6T2NPaHV0blwvMUFNVkl3dGI2eFcyN1lhNmE4dTdvYnVnRTFGUTFvQ1hiU
+mhYXC9veThuNEE9PSIsInZlcnNpb24iOiJ2MiIsInNpZ25hdHVyZSI6ImJSSk03cUtGY2F0THhGUnUyelFnc3dzMnhsNUExM1plcWc1M29GTWprTTM1bE1f
+RE4tNnlKR3JFNWtJODNMNEVZU3huRDFJWVBGaUtFNjZGV0RWNkNPUklpd2g3T0M4RjhTVzc1bUtFcjAyTlRqanUtR2hVX1NvMGkzQnRwUzdDd0FCeWU5SGN
+6WFpBNFZZbUZ6VlNYbnB6Rnl0QjdNNzUtajFNLTBzandQYz0ifQ==, sdsErrorCode=0, sdsErrorMessage=null)
+D/CoreBackPreview( 3573): Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivity}: Setting b
+ack callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@668e9e0, mPriority=0,
+ mIsAnimationCallback=false, mOverrideBehavior=0}
+I/e.targettracker(20233): Compiler allocated 6765KB to compile void android.view.ViewRootImpl.performTraversals()
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): current status bar control target is : Window{2464e5 u0 com.example.targettracker/com.exam
+ple.targettracker.MainActivity}
+D/WindowManager( 3573): updateSystemBarAttributes displayId: 0 Window{2464e5 u0 com.example.targettracker/com.example.t
+argettracker.MainActivity} winAppearance=
+D/WindowManager( 3573): wms.Input focus has changed to Window{2464e5 u0 com.example.targettracker/com.example.targettra
+cker.MainActivity} display=0 updateInputWindows = true
+D/WmSystemUiDebug( 3573): on system bar attributes changed displayId=0 appearance= appearanceRegions=[AppearanceRegion{
+ bounds=[0,0][3200,1440]}, AppearanceRegion{LIGHT_STATUS_BARS bounds=[0,0][1440,3200]}] navbarColorManagedByIme=false b
+ehavior=2 requestedVisibleTypes=[navigationBars systemGestures mandatorySystemGestures tappableElement displayCutout wi
+ndowDecor systemOverlays] packageName=com.example.targettracker letterboxDetails=[]
+I/AiCrEngine_PERCEPTION_ScreenContentRecognition.screenPageTrigger(13054): package_name: com.example.targettracker, act
+ivity_name: com.example.targettracker.MainActivity, page_id: 
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/HeavyPackageIdentify(15059): splitMode: false, splitPackages: null, foregroundPkg: com.example.targettracker
+D/WindowManager( 3573): wms.finishDrawingLocked: mDrawState=COMMIT_DRAW_PENDING Window{2464e5 u0 com.example.targettrac
+ker/com.example.targettracker.MainActivity} in Surface(name=com.example.targettracker/com.example.targettracker.MainAct
+ivity#114038)/@0x52e0499
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/WindowManager( 3573): wms.commitFinishDrawingLocked: mDrawState=READY_TO_SHOW Window{2464e5 u0 com.example.targettrac
+ker/com.example.targettracker.MainActivity} in Surface(name=com.example.targettracker/com.example.targettracker.MainAct
+ivity#114038)/@0x52e0499
+I/WindowManager( 3573): onFirstWindowDrawn, try to remove startingWindow. ar: ActivityRecord{155833029 u0 com.example.t
+argettracker/.MainActivity t6652}  associatedTask: null  isMainWindow: true  startingWindow: Window{167a146 u0 Splash S
+creen com.example.targettracker}  startingData: SplashScreenStartingData{d4c957d removeAfterTransaction= 0}
+I/SmartPower( 3573): Miui monitor launch : com.example.targettracker/.MainActivity  transitionTime:22  launchTime:507  
+launchFrom:com.miui.home  launchType:1
+I/AppStartScenario( 3573): notifyScenarioChanged: active=false param=Bundle[{renderThreadId=15796, pid=20233, uid=10340
+, name=com.example.targettracker.MainActivity, type=2, state=1, processName=com.example.targettracker, packageName=com.
+example.targettracker}]
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker} 
+0
+D/IorapForwardingService( 3573): AppLaunchObserver#onActivityLaunchFinished! pid:20233; uid:10340; name:com.example.tar
+gettracker
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/WindowManager( 3573): wms.showSurfaceRobustly mWin:Window{2464e5 u0 com.example.targettracker/com.example.targettrack
+er.MainActivity} in Surface(name=com.example.targettracker/com.example.targettracker.MainActivity#114038)/@0x52e0499
+I/ActivityTaskManager( 3573): Displayed com.example.targettracker/.MainActivity for user 0: +507ms
+D/InsetsController(20233): com.example.targettracker/com.example.targettracker.MainActivity hide: statusBars android.vi
+ew.InsetsController@2b93ad2 android.view.InsetsController.applyAnimation:2241 android.view.InsetsController.applyAnimat
+ion:2212 android.view.InsetsController.onControlsChanged:1155 android.view.ViewRootImpl.onActiveControlsChanged:3360 an
+droid.view.ViewRootImpl.handleInsetsControlChanged:3314 android.view.ViewRootImpl$W.insetsControlChanged:13894 
+D/BufferQueueProducer( 8512): [VRI[targettracker]#3792(BLAST Consumer)3792](id:214000001723,api:1,p:8512,c:8512) discon
+nect: api 1 (caller=8512)
+D/CoreBackPreview( 3573): Window{167a146 u0 Splash Screen com.example.targettracker}: Setting back callback null
+D/BufferQueueConsumer( 8512): [VRI[targettracker]#3792(BLAST Consumer)3792](id:214000001723,api:0,p:-1,c:8512) disconne
+ct: caller 8512
+W/AppCompatLetterboxPolicy( 3573): start not layout letterbox Window{167a146 u0 Splash Screen com.example.targettracker
+ EXITING}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker E
+XITING} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker E
+XITING} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+W/AppCompatLetterboxPolicy( 3573): start not layout letterbox Window{167a146 u0 Splash Screen com.example.targettracker
+ EXITING}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker E
+XITING} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/ImeTracker( 3573): com.example.targettracker:79d55e86: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW 
+fromUser false
+I/ImeTracker(20233): com.example.targettracker:79d55e86: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+D/MiuiSplitInputMethodImpl( 3573): Make sure ime layering to: Window{2464e5 u0 com.example.targettracker/com.example.ta
+rgettracker.MainActivity} when transition animation start
+D/MiuiMirrorInputMethodImpl( 3573): InsetsControlTarget invalid!:Window{2464e5 u0 com.example.targettracker/com.example
+.targettracker.MainActivity}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker E
+XITING} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/CameraManager(20233): Open camera top activityName is com.example.targettracker.MainActivity
+W/AppCompatLetterboxPolicy( 3573): start not layout letterbox Window{167a146 u0 Splash Screen com.example.targettracker
+ EXITING}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{167a146 u0 Splash Screen com.example.targettracker E
+XITING} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/CameraImpl( 2865): splitClientPackageActivityName: app packageName is com.example.targettracker,activityName is com.e
+xample.targettracker.MainActivity, fullName is com.example.targettracker&com.example.targettracker.MainActivity
+I/MiCameraSceneIdentify( 2865): setClientActivityName: The activity is com.example.targettracker.MainActivity 
+I/CameraService( 2865): CameraService::connect call (PID 20233 "com.example.targettracker", camera ID 0) and Camera API
+ version 2
+I/CamOpt_Service( 3573): notifyCameraStatusChanged cameraId: 0, callerPkg: com.example.targettracker, callerAr: com.exa
+mple.targettracker.MainActivity, uid: 10340, pid: 20233, status: 1
+I/CamOpt_Booster( 3573): notifyCameraStatusChanged : status: 1, caller: com.example.targettracker, modelevel: 0
+I/Camera2ClientBase( 2865): Camera 0: Opened. Client: com.example.targettracker (PID 20233, UID 10340)
+I/MiCameraCustomize( 2865): parseFunctionMask: activity: com.example.targettracker.MainActivity，package: com.example.ta
+rgettracker, cameraid: 0
+I/MiCameraCustomize( 2865): trdCloudControl: activity: com.example.targettracker.MainActivity,package: com.example.targ
+ettracker
+D/CameraService( 2865): notifyCameraOpening: Start camera ops, package name = com.example.targettracker, client UID = 1
+0340
+D/ViewRootImplStubImpl(20233): , vri:android.view.ViewRootImpl@6f75ece, com.example.targettracker/com.example.targettra
+cker.MainActivity
+D/ViewRootImplStubImpl(20233): , surfaceView:android.view.SurfaceView{5995c14 V.E...... ......I. 0,0-1600,1200}, Surfac
+eView[com.example.targettracker/com.example.targettracker.MainActivity]
+D/ViewRootImplStubImpl(20233): , surfaceControl:Surface(name=5995c14 SurfaceView[com.example.targettracker/com.example.
+targettracker.MainActivity](BLAST)#114045)/@0x23d88d6
+D/SurfaceView(20233): UPDATE Surface(name=5995c14 SurfaceView[com.example.targettracker/com.example.targettracker.MainA
+ctivity]#114044)/@0xc615c62, mIsProjectionMode = false
+D/MiuiEmbeddingWindow( 3573): notifyCameraStateChanged packageName:com.example.targettracker cameraState:1
+D/MiuiEmbeddingWindow( 3573): close:3rdApp camera pipeline :com.example.targettracker, force=true
+I/CamOpt_Service( 3573): notifyCameraStatusChanged cameraId: 0, callerPkg: com.example.targettracker, callerAr: com.exa
+mple.targettracker.MainActivity, uid: 10340, pid: 20233, status: 3
+I/CamOpt_Booster( 3573): notifyCameraStatusChanged : status: 3, caller: com.example.targettracker, modelevel: 0
+D/CameraImpl( 2865): updateSessionParams 481 sucessfully update com.example.targettracker
+I/EcoEngine( 2273): [Inf|Ext|Key] ecoInfextension.cpp:115 doExtension() do not isCameraX !
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+D/EcoEngine( 2273): [Inf|Ext] ecoInfextension.cpp:603 operator()() doSource _isCameraX isCameraX:-1 ret false
+I/WindowManager( 3573): StartingWindow exit animation finished, win = Window{167a146 u0 Splash Screen com.example.targe
+ttracker EXITING} remove = true
+I/WindowManager( 3573): wms.hideSurface mWin:Window{167a146 u0 Splash Screen com.example.targettracker EXITING} reason:
+(onExitAnimationDone) in Surface(name=Splash Screen com.example.targettracker#114031)/@0x93d54d0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{167a146 u0 Splash Screen c
+om.example.targettracker}
+I/Letterbox( 3573): applySurfaceChanges Window{167a146 u0 Splash Screen com.example.targettracker} remove letterbox  co
+m.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/WindowManager( 3573): postWindowRemoveCleanupLocked: Removing startingWindow Window{167a146 u0 Splash Screen com.exam
+ple.targettracker} from ActivityRecord{155833029 u0 com.example.targettracker/.MainActivity t6652} activity = ActivityR
+ecord{155833029 u0 com.example.targettracker/.MainActivity t6652}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/auth    (28211): [XMS][Auth] fetch auth resp: ResponseBody(code=0, msg=成功, data=[HttpAuthData(statusCode=0, statusMsg
+=成功, packageName=com.example.targettracker, apkSigns=null, scopeInfos=[])])
+I/auth    (28211): [XMS][Auth] error connectData: AuthConnectData(packageName=com.example.targettracker, isDebug=false,
+ clientId=null, scope=20024, appType=0), errorCode: -300, errorMsg: Authentication failed because scope mismatch., orig
+inCode: null, originMsg: null
+I/AuthConnectManager(30844): [XMS][SDK_AUTH_VERSION: 1.0.7] auth result: Bundle{result_auth_params=Bundle{package_name=
+com.example.targettracker, auth_sdk_version_name=1.0.7, scope=20024}, result_msg=Authentication failed because scope mi
+smatch., result_code=-300, result_extra_bundle=null}
+D/MCAM_MiViSDKUtil(30844): XMS auth result pkg: com.example.targettracker ret:false cached:false
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/TransitionImpl( 3573): finishTransition: updateLastSurfacePosition tf=Task{6980b4b #6652 type=standard A=10340:com.ex
+ample.targettracker}
+I/WindowManager( 3573): rotation changed from 0 to 1 due ActivityRecord{155833029 u0 com.example.targettracker/.MainAct
+ivity t6652}
+D/WindowManager( 3573): finishFixedRotationTransform ActivityRecord{155833029 u0 com.example.targettracker/.MainActivit
+y t6652} applyDisplayRotation=false size=1
+D/DisplayContentStubImpl( 3573): setFixedRotationLaunchingApp 0 prev=ActivityRecord{155833029 u0 com.example.targettrac
+ker/.MainActivity t6652} now=null rotation=-1
+D/WindowManager( 3573): Collecting in transition 6886: Task{6980b4b #6652 type=standard A=10340:com.example.targettrack
+er} init visibleRequested:true dc:Display{#0 state=ON size=3200x1440 ROTATION_90}
+D/BarFollowAnimation( 3573): onTaskInfoChanedForCaptionBar Task{6980b4b #6652 type=standard A=10340:com.example.targett
+racker} shouldbeVisible:true isVisible:true isOnTop:true windowMode:1 preDisplayId:-1 displayId:0 mCaptionAssociatedTas
+k:null mIsTouchedInCaption:false
+D/WindowManager( 3573):    ChangeInfo{54fde07 container=Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker} flags=0x0}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+D/WindowManager( 3573): updateSystemBarAttributes displayId: 0 Window{2464e5 u0 com.example.targettracker/com.example.t
+argettracker.MainActivity} winAppearance=
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/WmSystemUiDebug( 3573): on system bar attributes changed displayId=0 appearance= appearanceRegions=[AppearanceRegion{
+ bounds=[169,0][3200,1440]}] navbarColorManagedByIme=false behavior=2 requestedVisibleTypes=[navigationBars systemGestu
+res mandatorySystemGestures tappableElement displayCutout windowDecor systemOverlays] packageName=com.example.targettra
+cker letterboxDetails=[]
+D/WindowManager( 3573): Final targets: [ChangeInfo{54fde07 container=Task{6980b4b #6652 type=standard A=10340:com.examp
+le.targettracker} flags=0x0}, ChangeInfo{ad9ac46 container=DefaultTaskDisplayArea@37851561 flags=0x10}, ChangeInfo{43fe
+27a container=Display{#0 state=ON size=3200x1440 ROTATION_90} flags=0x1}]
+I/DynamicIslandService( 3573): elementSurfaceTransition is null for:com.example.targettracker
+D/WindowManager( 3573): Calling onTransitionReady info={id=6886 t=CHANGE f=0x0 trk=0 r=[0@Point(0, 0)] c=[{WCT{RemoteTo
+ken{b1e719c Task{6980b4b #6652 type=standard A=10340:com.example.targettracker}}} m=CHANGE f=NONE p=WCT{RemoteToken{8e8
+c71c DefaultTaskDisplayArea@37851561}} leash=Surface(name=Task=6652#114019)/@0xc04f41a sb=Rect(0, 0 - 1440, 3200) eb=Re
+ct(0, 0 - 3200, 1440) epz=Point(3200, 1440) d=0 r=0->1:0 taskParent=-1 v=trueMiuiChangeImpl {miuiEmbedding:false, scale
+:1.0}},{WCT{RemoteToken{8e8c71c DefaultTaskDisplayArea@37851561}} m=CHANGE f=FLAG_IS_TASK_DISPLAY_AREA p=WCT{RemoteToke
+n{8381792 Display{#0 state=ON size=3200x1440 ROTATION_90}}} leash=Surface(name=DefaultTaskDisplayArea#10)/@0x3412d85 sb
+=Rect(0, 0 - 1440, 3200) eb=Rect(0, 0 - 3200, 1440) epz=Point(3200, 1440) d=0 r=0->1:-1 v=trueMiuiChangeImpl {miuiEmbed
+ding:false, scale:1.0}},{WCT{RemoteToken{8381792 Display{#0 state=ON size=3200x1440 ROTATION_90}}} m=CHANGE f=IS_DISPLA
+Y leash=Surface(name=WindowedMagnification:0:31#3)/@0x3d6ba82 sb=Rect(0, 0 - 1440, 3200) eb=Rect(0, 0 - 3200, 1440) epz
+=Point(3200, 1440) d=0 r=0->1:3 v=trueMiuiChangeImpl {miuiEmbedding:false, scale:1.0}}] mk=[false] noAni=[false] df=[fa
+lse] rsa=[false] oa=[false] nc=[0] ho=[false] hla=[false] iSync=[-1]}, mToken=Token{b9c5d5d TransitionRecord{4bbfea5 id
+=6886 type=CHANGE flags=0x0 c=[
+D/WindowManager( 3573):    ChangeInfo{54fde07 container=Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker} flags=0x0}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/WindowManager( 3573): Allow fixed rotation for not collecting:ActivityRecord{155833029 u0 com.example.targettracker/.
+MainActivity t6652}
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 3200, 1440), focused=true, o
+ldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.exampl
+e.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.exampl
+e.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitc
+hDecorViewModel.onTaskChanging:110 com.android.wm.shell.freeform.FreeformTaskTransitionObserver.onTransitionReady:164 c
+om.android.wm.shell.transition.Transitions.dispatchReady:241 com.android.wm.shell.transition.Transitions.onTransitionRe
+ady:280 com.android.wm.shell.transition.Transitions$TransitionPlayerImpl$$ExternalSyntheticLambda1.run:48 
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 3200, 1440), focused=true, o
+ldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.exampl
+e.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.exampl
+e.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.decoration.
+MiuiDecorationController.relayout:4 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitchDe
+corViewModel.lambda$relayoutDecorations$12:5 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWi
+nSwitchDecorViewModel.$r8$lambda$3XUvBAeRtPEOdi-13ite9VIoLt8:1 com.android.wm.shell.multitasking.miuimultiwinswitch.miu
+iwindowdecor.MulWinSwitchDecorViewModel$$ExternalSyntheticLambda9.accept:10 java.util.concurrent.ConcurrentHashMap.forE
+ach:1608 
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 3200, 1440), focused=true, o
+ldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.exampl
+e.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.exampl
+e.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.decoration.
+MiuiDecorationController.relayout:4 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitchDe
+corViewModel.lambda$relayoutDecorations$12:5 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWi
+nSwitchDecorViewModel.$r8$lambda$3XUvBAeRtPEOdi-13ite9VIoLt8:1 com.android.wm.shell.multitasking.miuimultiwinswitch.miu
+iwindowdecor.MulWinSwitchDecorViewModel$$ExternalSyntheticLambda9.accept:10 java.util.concurrent.ConcurrentHashMap.forE
+ach:1608 
+I/WindowManager( 3573): Allow fixed rotation for not collecting:ActivityRecord{155833029 u0 com.example.targettracker/.
+MainActivity t6652}
+I/TransitionImpl( 3573): finishTransition: updateLastSurfacePosition tf=Task{6980b4b #6652 type=standard A=10340:com.ex
+ample.targettracker}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/VA_ActivityUtils(32236): getTopActivity packageName:ComponentInfo{com.example.targettracker/com.example.targettracker
+.MainActivity}
+D/VA_AppStateWatcher(32236): currentPkgName:com.example.targettracker, className:com.example.targettracker.MainActivity
+, lastPkgName:com.example.targettracker
+D/MiuiDecorationController( 8512): relayout::taskId=6652, visible=true, bounds=Rect(0, 0 - 3200, 1440), focused=true, o
+ldImmersive=false, newImmersive=false, windowMode=1, activityType=1, displayId=0, baseActivity=ComponentInfo{com.exampl
+e.targettracker/com.example.targettracker.MainActivity}, topActivity=ComponentInfo{com.example.targettracker/com.exampl
+e.targettracker.MainActivity}, callers=com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.decoration.
+MiuiDecorationController.relayout:4 com.android.wm.shell.multitasking.miuimultiwinswitch.miuiwindowdecor.MulWinSwitchDe
+corViewModel.onTaskInfoChanged:18 com.android.wm.shell.multitasking.common.taskmanager.MultiTaskingTaskListener.onTaskI
+nfoChanged:47 com.android.wm.shell.ShellTaskOrganizer.onTaskInfoChanged:136 android.window.TaskOrganizer$1.lambda$onTas
+kInfoChanged$6:300 
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/ActivityTaskManager( 3573):  setSkipCaptureLayers tr: Task{6980b4b #6652 type=standard A=10340:com.example.targettrac
+ker}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/CameraMind(10317): [RuleMap]top : com.example.targettracker/com.example.targettracker.MainActivity
+I/CameraMind(10317): [RuleMap]top : com.example.targettracker/com.example.targettracker.MainActivity
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+W/MIUISafety-Monitor(13266): sync com.example.targettracker,userId:0,op:26,active:true,isNote:false,isTerminal:false,no
+tify:true
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/InsetsController(20233): cancelAnimation of types:1 animType:1 host:com.example.targettracker/com.example.targettrack
+er.MainActivity invokeCallback=false
+W/InteractionJankMonitor(20233): Initializing without READ_DEVICE_CONFIG permission. enabled=false, interval=1, missedF
+rameThreshold=3, frameTimeThreshold=64, package=com.example.targettracker
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/CameraMind(10317): [RuleMap]top : com.example.targettracker/com.example.targettracker.MainActivity
+I/CameraMind(10317): [RuleMap]top : com.example.targettracker/com.example.targettracker.MainActivity
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+I/CamOpt_Service( 3573): notifyCameraStatusChanged cameraId: 0, callerPkg: com.example.targettracker, callerAr: com.exa
+mple.targettracker.MainActivity, uid: -1, pid: -1, status: 2
+I/CamOpt_Booster( 3573): notifyCameraStatusChanged : status: 2, caller: com.example.targettracker, modelevel: 0
+I/TransitionCallback( 7806): clear leash = Surface(name=TL_Surface(name=Task=6652#114019)/@0xd35828e_transition-leash#1
+14034)/@0x4a8936d, key = ComponentInfo{com.example.targettracker/com.example.targettracker.MainActivity}#6652
+I/WakeupConsumer( 7180): event=FRONT_APP_ENTER subject=FRONT_APP data=ForegroundAppState(packageName=com.example.target
+tracker, trackId=com.example.targettracker, lastEnterAt=1785805143301, lastExitAt=-1, stayTime=-1, attributes=Foregroun
+dAppAttributes(categoryL1=unknown, categoryL2=unknown, categoryL3=unknown))
+D/MiuiMirrorInputMethodImpl( 3573): InsetsControlTarget invalid!:Window{2464e5 u0 com.example.targettracker/com.example
+.targettracker.MainActivity}
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+W/RenderThread(20233): type=1400 audit(0.0:873676): avc:  denied  { getattr } for  path="/sys/module/metis/parameters/m
+inor_window_app" dev="sysfs" ino=86596 scontext=u:r:untrusted_app:s0:c84,c257,c512,c768 tcontext=u:object_r:sysfs_migt:
+s0 tclass=file permissive=0 app=com.example.targettracker
+D/PerfShielderService( 3573): com.example.targettracker|com.example.targettracker/com.example.targettracker.MainActivit
+y|159|400253536828563|26|2|9
+W/MiuiPerfServiceClient(11916): interceptAndQueuing:20233|com.example.targettracker|159|26|400253536828563|Slow handle 
+animation|9
+D/ActivityThread(31794): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread(31794): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread(31794): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 5443): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 5443): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 5443): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread(16881): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread(16881): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread(16881): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 2955): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 2955): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/ActivityThread( 2955): Package [com.example.targettracker] reported as REPLACED, but missing application info. Assumi
+ng REMOVED.
+D/AppPredictService(13266): start doPredict com.example.targettracker
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+D/BarFollowAnimation( 3573): pairAppearanceRegionAndWin win=Window{2464e5 u0 com.example.targettracker/com.example.targ
+ettracker.MainActivity} 0
+I/AppCompatLetterboxPolicy( 3573): updateLetterboxSurfaceIfNeeded applySurfaceChanges Window{2464e5 u0 com.example.targ
+ettracker/com.example.targettracker.MainActivity}
+I/Letterbox( 3573): applySurfaceChanges Window{2464e5 u0 com.example.targettracker/com.example.targettracker.MainActivi
+ty} remove letterbox  com.android.server.wm.Letterbox@339deef
+W/LetterboxSurface( 3573): applySurfaceChanges Nothing changed.ActivityRecord{155833029 u0 com.example.targettracker/.M
+ainActivity t6652} left com.android.server.wm.Letterbox@339deef
+W/FinalizerDaemon(20233): type=1400 audit(0.0:873677): avc:  denied  { getopt } for  path="/dev/socket/usap_pool_primar
+y" scontext=u:r:untrusted_app:s0:c84,c257,c512,c768 tcontext=u:r:zygote:s0 tclass=unix_stream_socket permissive=0 app=c
+om.example.targettracker
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+E/e.targettracker(20233): FrameInsert open fail: No such file or directory
+D/ProfileInstaller(20233): Installing profile for com.example.targettracker
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+I/e.targettracker(20233): ProcessProfilingInfo new_methods=120 is saved saved_to_disk=1
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+I/e.targettracker(20233): This is non sticky GC, maxfree is 33554432 minfree is 8388608
+
+

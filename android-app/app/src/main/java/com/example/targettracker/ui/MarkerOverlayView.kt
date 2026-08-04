@@ -113,8 +113,14 @@ class MarkerOverlayView @JvmOverloads constructor(
             canvas.drawLine(cx - cs, cy, cx + cs, cy, centerCrossPaint)
             canvas.drawLine(cx, cy - cs, cx, cy + cs, centerCrossPaint)
 
-            // ID 标签
-            val label = "T$tid"
+            // ID + 尺寸 + 距离 标签
+            val zArr = det.tvec?.get(2, 0)
+            val zMm = if (zArr != null && zArr.isNotEmpty()) zArr[0] else Double.NaN
+            val sizeMm = det.sizeMm
+            val distStr = if (zMm.isNaN()) "" else {
+                if (zMm >= 1000) " ${(zMm / 1000.0).let { "%.2f".format(it) }}m" else " ${zMm.toInt()}mm"
+            }
+            val label = "T$tid  ${sizeMm.toInt()}mm${distStr}"
             val pad = 10f
             val tw = idPaint.measureText(label)
             val labelY = cy - halfH - 22f

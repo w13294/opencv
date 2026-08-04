@@ -1,0 +1,29 @@
+﻿
+08-04 08:59:35.880  2273  4481 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:35.911  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:35.944  2273  4481 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:35.979  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.011  2273  4481 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.109  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.142  2273  4482 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.178  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.184  2273  4477 D CamX    : [DEBUG][HAL    ] camxhal3.cpp:3524 process_capture_result() CAM-PERF: mode:0
+x0, cameraID:7, FPS:30.07, skip:0, max exposureTime:10000us, offlinelog:0ms, temperature:38227
+08-04 08:59:36.211  2273  4477 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.239  2273  4477 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.279  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.377  2273  4481 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.409  2273  4481 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.442  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.476  2273  4478 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.510  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.543  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.643  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.675  2273  4476 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.703  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.743  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.776  2273  4480 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.809  2273  4477 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+08-04 08:59:36.908  2273  4482 E LDC-NODE: [DRIFT][nodeMetaData.cpp][GetCameraId()]:[322] GetMetadata err
+
+
