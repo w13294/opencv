@@ -32,7 +32,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
 
     companion object {
         private const val TAG = "TargetDetector"
-        private const val EMA_ALPHA = 0.35  // EMA 平滑因子: 越小越稳定，越大越灵敏
+        private const val EMA_ALPHA = 0.65  // EMA 平滑因子: 越小越稳定，越大越灵敏
     }
 
     // 追踪状态
@@ -342,8 +342,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
                 val maxAxis = Math.max(axisA, axisB)
                 if (maxAxis == 0.0) continue
                 ratio = Math.min(axisA, axisB) / maxAxis
-                // 外环必须接近圆形 (回退/合并模式下更宽松，但单后代需要更高圆度)
-                val minRatio = if (mergedQuadrant) 0.78 else if (fallbackMode) 0.5 else 0.7
+                // 外环必须接近圆形 (回退/合并模式下更严格，过滤非靶标圆形物体)
+                val minRatio = if (mergedQuadrant) 0.78 else if (fallbackMode) 0.65 else 0.7
                 if (ratio < minRatio) continue
                 ellipse = e
             } catch (ex: Exception) {
@@ -362,19 +362,19 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             // 象限质心 (2 点, 对齐 Windows 端 c_pts)
             val qc = arrayOf(Point(cx1, cy1), Point(cx2, cy2))
 
-            // 质量评分 (严格对齐 Windows 端)
+            // 质量评分
             val quality: Double = if (mergedQuadrant) {
-                0.25  // 合并象限模式: 基础质量分
+                0.35  // 合并象限模式: 单后代，必须质量更高才能信任
             } else if (fallbackMode) {
-                0.25  // 回退模式质量较低
+                0.3   // 回退模式质量较低
             } else {
                 val angleScore = Math.min(1.0, (angleDeg - 100.0) / 80.0)
                 val areaConsistency = 1.0 - (areaRatioQuad - 1.0) / 2.5
                 Math.max(0.3, 0.4 * ((ratio - 0.7) / 0.3) + 0.3 * angleScore + 0.3 * areaConsistency)
             }
 
-            // ──── 质量阈值: 宽松过滤，只排除明显噪声 ────
-            if (quality < 0.15) continue
+            // ──── 质量阈值 ────
+            if (quality < 0.22) continue
 
             // ──── 椭圆中心对齐验证: 象限质心中点应靠近椭圆中心 (靶标同心结构) ────
             // 合并象限模式: 单后代中心在椭圆中心 50% 半径内
@@ -384,7 +384,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             val dyCenter = quadMidY - ellipse.center.y
             val centerDist = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter)
             val ellipseRadius = Math.max(ellipse.size.width, ellipse.size.height) / 2.0
-            val maxCenterDist = if (mergedQuadrant) ellipseRadius * 0.5 else ellipseRadius * 0.6
+            val maxCenterDist = if (mergedQuadrant) ellipseRadius * 0.35 else if (fallbackMode) ellipseRadius * 0.45 else ellipseRadius * 0.55
             if (centerDist > maxCenterDist) continue
 
             candidates.add(Candidate(ellipse, qc, area, quality, ratio))
@@ -429,12 +429,24 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             val cc = cand.ellipse.center
             val candR = (cand.ellipse.size.width + cand.ellipse.size.height) / 4.0
             for ((tid, t) in trackedTargets) {
-                val dx = cc.x - t.center.x
-                val dy = cc.y - t.center.y
+                // 使用平滑后的中心做匹配 (比原始坐标更稳定, 减少ID跳变)
+                val matchCx = if (t.smoothEllipseW > 0.0) t.smoothCenter.x else t.center.x
+                val matchCy = if (t.smoothEllipseW > 0.0) t.smoothCenter.y else t.center.y
+                val dx = cc.x - matchCx
+                val dy = cc.y - matchCy
                 val dist = Math.sqrt(dx * dx + dy * dy)
                 if (dist >= targetConfig.minDistancePx) continue
                 // 允许的位移随目标尺寸放宽: 大靶标在画面里本来就移动得快
-                if (dist > Math.max(targetConfig.minDistancePx * 0.5, candR * 1.5)) continue
+                val maxDist = Math.max(targetConfig.minDistancePx * 0.5, candR * 1.5)
+                if (dist > maxDist) continue
+                // ── 面积一致性: 候选面积与追踪历史偏差 > 3x 则拒绝匹配 ──
+                if (t.smoothEllipseW > 0.0) {
+                    val trackedAreaEst = t.smoothEllipseW * t.smoothEllipseH
+                    val candAreaEst = cand.ellipse.size.width * cand.ellipse.size.height
+                    val areaRatio = Math.max(trackedAreaEst, candAreaEst) /
+                                    (Math.min(trackedAreaEst, candAreaEst) + 1.0)
+                    if (areaRatio > 3.0) continue  // 面积差超过3倍，不是同一个目标
+                }
                 pairs.add(Pair2(si, tid, dist))
             }
         }
@@ -445,10 +457,12 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             usedTids.add(p.tid)
         }
 
-        // 未匹配的分配新 ID: 取最小未占用 tid, 避免错位 (旧版用 sorted 索引当 ID, 导致 T0+T3 → T1)
+        // 未匹配的分配新 ID: 取最小未占用 tid
+        // 质量不够的候选不创建新追踪器 (防止单帧假阳性)
         var nextFreeTid = 0
-        for ((si, _) in sorted.withIndex()) {
+        for ((si, cand) in sorted.withIndex()) {
             if (si !in assignedIds) {
+                if (cand.quality < 0.4) continue  // 新目标必须有足够质量
                 // 跳过已被占用的 id
                 while (nextFreeTid in usedTids) nextFreeTid++
                 assignedIds[si] = nextFreeTid

@@ -28,14 +28,19 @@ import com.example.targettracker.ui.theme.*
 /**
  * 画面上层 HUD 叠加 — XYZ位移数值面板 (左上角, 可折叠)
  * 轨迹图由 MainScreen 在右上角独立放置，避免抢占中心画面
+ *
+ * 多靶标时显示 Tab 选择器，可切换查看不同靶标的位移数据
  */
 @Composable
 fun HUDOverlay(
     state: TargetTrackerState,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSelectTarget: (Int) -> Unit = {}
 ) {
-    val disp = state.primaryDisplacement
-    val detect = state.primaryDetection
+    val disp = state.selectedDisplacement()
+    val detect = state.selectedDetection()
+    val targetIds = state.detectResults.keys.sorted()
+    val selectedId = state.selectedTargetId ?: targetIds.firstOrNull()
     var expanded by remember { mutableStateOf(false) }
 
     Box(modifier = modifier.padding(12.dp)) {
@@ -44,7 +49,10 @@ fun HUDOverlay(
             detect = detect,
             warning = state.warningMessage,
             expanded = expanded,
-            onToggle = { expanded = !expanded }
+            onToggle = { expanded = !expanded },
+            targetIds = targetIds,
+            selectedId = selectedId,
+            onSelectTarget = onSelectTarget
         )
     }
 }
@@ -55,7 +63,10 @@ private fun DisplacementPanel(
     detect: com.example.targettracker.detector.DetectionResult?,
     warning: String?,
     expanded: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    targetIds: List<Int> = emptyList(),
+    selectedId: Int? = null,
+    onSelectTarget: (Int) -> Unit = {}
 ) {
     val cardBase = Modifier
         .shadow(14.dp, RoundedCornerShape(14.dp))
@@ -78,6 +89,9 @@ private fun DisplacementPanel(
             }
             Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(c))
             if (disp != null) {
+                if (targetIds.size > 1 && selectedId != null) {
+                    Text("#$selectedId", style = MaterialTheme.typography.labelSmall, color = HudCyan)
+                }
                 Text("X %.1f".format(disp.xMm), style = MaterialTheme.typography.labelSmall, color = HudWhite)
                 Text("Y %.1f".format(disp.yMm), style = MaterialTheme.typography.labelSmall, color = HudWhite)
                 Text("Z %.1f".format(disp.zMm), style = MaterialTheme.typography.labelSmall, color = HudCyan)
@@ -94,8 +108,36 @@ private fun DisplacementPanel(
         modifier = cardBase.padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
+        // ── 靶标 Tab 选择器 ──
+        if (targetIds.size > 1) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 4.dp)
+            ) {
+                targetIds.forEach { tid ->
+                    val isSelected = tid == selectedId
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) PrimaryCyan.copy(alpha = 0.25f) else Surface2.copy(alpha =
+                                0.4f))
+                            .border(1.dp, if (isSelected) PrimaryCyan else HudLine.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                            .clickable { onSelectTarget(tid) }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            "#$tid",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isSelected) PrimaryCyan else HudGray
+                        )
+                    }
+                }
+            }
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("位移", style = MaterialTheme.typography.labelMedium, color = HudCyan,
+            Text(if (selectedId != null) "位移 #$selectedId" else "位移",
+                style = MaterialTheme.typography.labelMedium, color = HudCyan,
                 modifier = Modifier.weight(1f))
             Icon(Icons.Filled.ExpandMore, "收起", tint = HudGray, modifier = Modifier.size(16.dp))
         }
@@ -180,10 +222,19 @@ private fun HudLine(label: String, value: Double, color: Color) {
 @Composable
 fun TrajectoryChart(
     state: TargetTrackerState,
-    maxHistory: Int = 300
+    maxHistory: Int = 300,
+    onSelectTarget: (Int) -> Unit = {}
 ) {
+    val disp = state.selectedDisplacement()
+    val selectedId = state.selectedTargetId
+    val targetIds = state.detectResults.keys.sorted()
+
     val points = remember { mutableStateListOf<Pair<Float, Float>>() }
-    val disp = state.primaryDisplacement
+    // 当选中目标变化时清空轨迹历史
+    val keySelected by rememberUpdatedState(selectedId)
+    LaunchedEffect(keySelected) {
+        points.clear()
+    }
     if (disp != null && !disp.isOutlier) {
         points.add(disp.xMm.toFloat() to disp.yMm.toFloat())
         if (points.size > maxHistory) {
@@ -207,6 +258,9 @@ fun TrajectoryChart(
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Box(Modifier.size(6.dp).clip(RoundedCornerShape(3.dp)).background(HudGreen))
+            if (targetIds.size > 1 && selectedId != null) {
+                Text("#$selectedId", style = MaterialTheme.typography.labelSmall, color = HudCyan)
+            }
             Text("轨迹", style = MaterialTheme.typography.labelSmall, color = HudCyan)
             Icon(
                 Icons.Filled.ExpandLess, "展开轨迹",
@@ -226,12 +280,39 @@ fun TrajectoryChart(
             .clickable { expanded = false }
     ) {
         Column {
+            // ── 靶标 Tab 选择器 ──
+            if (targetIds.size > 1) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(start = 6.dp, top = 4.dp, end = 6.dp)
+                ) {
+                    targetIds.forEach { tid ->
+                        val isSelected = tid == selectedId
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isSelected) PrimaryCyan.copy(alpha = 0.25f) else Surface2.copy(alpha = 0.4f))
+                                .border(0.5.dp, if (isSelected) PrimaryCyan else HudLine.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                                .clickable { onSelectTarget(tid) }
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                        ) {
+                            Text(
+                                "#$tid",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) PrimaryCyan else HudGray,
+                                fontSize = androidx.compose.ui.unit.TextUnit(9f, androidx.compose.ui.unit.TextUnitType.Sp)
+                            )
+                        }
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "X-Y 轨迹",
+                    if (selectedId != null) "XY轨迹#$selectedId" else "X-Y 轨迹",
                     style = MaterialTheme.typography.labelSmall,
                     color = HudCyan,
                     modifier = Modifier.weight(1f)

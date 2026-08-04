@@ -35,6 +35,9 @@ class TargetTrackerState {
     // 告警
     var warningMessage: String? by mutableStateOf(null)
 
+    // 当前选中的靶标 ID (多靶标时用户可切换, null=自动选第一个)
+    var selectedTargetId: Int? by mutableStateOf(null)
+
     /** 主靶标 (用于单靶标显示) */
     val primaryDisplacement: DisplacementResult?
         get() {
@@ -47,4 +50,20 @@ class TargetTrackerState {
             val ids = detectResults.keys.sorted()
             return if (ids.isNotEmpty()) detectResults[ids.first()] else null
         }
+
+    /** 当前选中的靶标位移 (优先用户选择, 否则自动选第一个) */
+    fun selectedDisplacement(): DisplacementResult? {
+        val ids = dispResults.keys.sorted()
+        if (ids.isEmpty()) return null
+        val tid = selectedTargetId?.takeIf { it in dispResults } ?: ids.first()
+        return dispResults[tid]
+    }
+
+    /** 当前选中的靶标检测 */
+    fun selectedDetection(): DetectionResult? {
+        val ids = detectResults.keys.sorted()
+        if (ids.isEmpty()) return null
+        val tid = selectedTargetId?.takeIf { it in detectResults } ?: ids.first()
+        return detectResults[tid]
+    }
 }

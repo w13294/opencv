@@ -9,7 +9,7 @@ object Config {
         val mode: String = "quadrant",
         val defaultSizesMm: List<Double> = listOf(200.0, 100.0, 50.0),
         val sizeToleranceMm: Double = 20.0,
-        val lostTimeoutFrames: Int = 30,
+        val lostTimeoutFrames: Int = 5,  // 脱靶后 ≤5帧 (~170ms) 移除标注，快速响应
         val minDistancePx: Double = 150.0
     )
 

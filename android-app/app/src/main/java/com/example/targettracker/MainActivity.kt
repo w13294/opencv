@@ -35,6 +35,7 @@ import com.example.targettracker.ui.theme.TargetTrackerTheme
 import org.opencv.android.OpenCVLoader
 import org.opencv.core.Mat
 import java.util.concurrent.Executors
+import java.util.concurrent.LinkedBlockingQueue
 
 /**
  * 靶标追踪 Android 入口
@@ -60,8 +61,30 @@ class MainActivity : ComponentActivity() {
     private val detector = TargetDetector(Config.target)
     private val engine = DisplacementEngine(Config.measure)
 
-    // 相机分析线程
+    // 相机分析线程 (单线程: 只做轻量预处理, 不做检测)
     private val analysisExecutor = Executors.newSingleThreadExecutor()
+
+    // ── 多线程流水线解耦 ──
+    // FrameJob: 预处理后的灰度帧 + 相机参数 (检测线程消费)
+    private data class FrameJob(
+        val gray: Mat,
+        val grayW: Int,
+        val grayH: Int,
+        val timestamp: Long,
+        val cameraMatrix: Mat?,
+        val distCoeffs: Mat?
+    )
+
+    // 容量1的阻塞队列: 始终只保留最新帧, 旧帧自动丢弃
+    private val frameQueue = LinkedBlockingQueue<FrameJob>(1)
+
+    // 检测线程: 从队列取帧 → detect → measure → 抛结果到主线程
+    private val detectionThread: Thread = Thread({
+        detectionLoop()
+    }, "TargetDetection").apply {
+        isDaemon = true
+        start()
+    }
 
     // 标定数据 (默认内参)
     private var calibData = CalibrationData()
@@ -533,21 +556,67 @@ class MainActivity : ComponentActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
 
-            // 分析器回调
-            var grayCache: Mat? = null
+            // ── CameraX 回调: 只做轻量预处理, 检测交给后台线程 ──
             imageAnalysis.setAnalyzer(analysisExecutor) { imageProxy ->
-                val startNs = System.nanoTime()
-                processFrame(imageProxy)
-                imageProxy.close()
+                try {
+                    val w = imageProxy.width
+                    val h = imageProxy.height
 
-                // FPS
-                frameCount++
-                val now = System.nanoTime()
-                val elapsed = (now - lastFpsTime) / 1_000_000_000.0
-                if (elapsed >= 1.0) {
-                    state.fps = frameCount / elapsed
-                    frameCount = 0
-                    lastFpsTime = now
+                    // 1. 相机内参 (轻量: 只做数学运算, ~1ms)
+                    if (useCalibration && calibData.isValid) {
+                        val scaleX = w.toDouble() / calibData.imageWidth
+                        val scaleY = h.toDouble() / calibData.imageHeight
+                        val cm = calibData.cameraMatrix.copyOf()
+                        cm[0] *= scaleX; cm[2] *= scaleX
+                        cm[4] *= scaleY; cm[5] *= scaleY
+                        cameraMatrix.put(0, 0, *cm)
+                    } else {
+                        val zoom = currentZoomState.value.toDouble().coerceAtLeast(0.1)
+                        val fx = w / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+                        val fy = h / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+                        cameraMatrix.put(0, 0, fx, 0.0, w / 2.0, 0.0, fy, h / 2.0, 0.0, 0.0, 1.0)
+                    }
+
+                    // 2. YUV→Gray (轻量: 内存拷贝, ~2-3ms)
+                    val grayPair = imageProxyToGray(imageProxy) ?: return@setAnalyzer
+                    var (gray, grayData) = grayPair
+                    val grayW = w
+                    val grayH = h
+
+                    // 3. 前摄翻转 (轻量)
+                    if (isFrontCamera) {
+                        val flipped = Mat()
+                        org.opencv.core.Core.flip(gray, flipped, 1)
+                        gray.release()
+                        gray = flipped
+                        if (grayData.size >= grayW * grayH) gray.get(0, 0, grayData)
+                    }
+
+                    // 4. 深拷贝: 传给检测线程 (互不干扰)
+                    val grayClone = Mat()
+                    gray.copyTo(grayClone)
+                    gray.release()
+                    val cmClone = cameraMatrix.clone()
+                    val dcClone = if (useCalibration && calibData.isValid) distCoeffs.clone() else null
+
+                    // 5. 投递到检测线程 (丢弃旧帧, 始终保持最新)
+                    val job = FrameJob(grayClone, grayW, grayH, System.currentTimeMillis(), cmClone, dcClone)
+                    frameQueue.poll() // 丢弃未处理的旧帧
+                    frameQueue.offer(job)
+
+                    // FPS
+                    frameCount++
+                    val now = System.nanoTime()
+                    val elapsed = (now - lastFpsTime) / 1_000_000_000.0
+                    if (elapsed >= 1.0) {
+                        state.fps = frameCount / elapsed
+                        frameCount = 0
+                        lastFpsTime = now
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Frame extraction failed: ${e.message}")
+                } finally {
+                    imageProxy.close()
                 }
             }
 
@@ -587,78 +656,61 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * 处理单帧 — 检测 + 测量 + 更新状态
+     * 后台检测线程: 从队列取帧 → detect → measure → 抛结果到主线程
+     *
+     * 流水线架构:
+     *   CameraX 回调 (analysisExecutor)  →  frameQueue  →  detectionLoop (本线程)
+     *   轻量预处理 (~5ms)                    容量1             重检测 (~20-50ms)
+     *
+     * 始终处理最新帧，旧帧自动丢弃，消除帧积压延迟。
      */
-    private fun processFrame(imageProxy: androidx.camera.core.ImageProxy) {
-        val width = imageProxy.width
-        val height = imageProxy.height
+    private fun detectionLoop() {
+        var dataBuf = ByteArray(0) // 可复用的 grayData 缓冲
+        while (!Thread.currentThread().isInterrupted) {
+            try {
+                val job = frameQueue.take() // 阻塞等待新帧
 
-        if (useCalibration && calibData.isValid) {
-            // 有真实标定: 按当前分辨率缩放内参
-            val scaleX = width.toDouble() / calibData.imageWidth
-            val scaleY = height.toDouble() / calibData.imageHeight
-            val cm = calibData.cameraMatrix.copyOf()
-            cm[0] *= scaleX; cm[2] *= scaleX
-            cm[4] *= scaleY; cm[5] *= scaleY
-            cameraMatrix.put(0, 0, *cm)
-        } else {
-            // 默认内参: 近似 60° 水平 FOV (fx ≈ width / (2*tan(30°)) ≈ width*0.866)
-            // 变焦会等效放大焦距, 需按变焦比缩放, 否则距离估算随变焦漂移
-            val zoom = currentZoomState.value.toDouble().coerceAtLeast(0.1)
-            val fx = width / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
-            val fy = height / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
-            cameraMatrix.put(0, 0, fx, 0.0, width / 2.0, 0.0, fy, height / 2.0, 0.0, 0.0, 1.0)
-        }
+                try {
+                    // 提取 grayData (检测器签名需要 ByteArray 做象限灰度统计)
+                    val buf = if (dataBuf.size >= job.grayW * job.grayH) dataBuf
+                              else ByteArray(job.grayW * job.grayH).also { dataBuf = it }
+                    job.gray.get(0, 0, buf)
 
-        // YUV → Gray (Mat + ByteArray 共用同一份数据)
-        var (gray, grayData) = imageProxyToGray(imageProxy) ?: return
-        val grayW = imageProxy.width
-        val grayH = imageProxy.height
-        val timestamp = System.currentTimeMillis()
+                    // ── 执行检测 (detector/engine 均由本线程独占, 无竞态) ──
+                    val detResults = detector.detect(
+                        job.gray, buf, job.grayW, job.grayH,
+                        job.cameraMatrix, job.distCoeffs
+                    )
 
-        // 前摄传感器画面水平镜像, 会导致靶标黑白象限的对角关系反转,
-        // 从而无法通过检测器的对角校验 -> 检测前先水平翻转还原
-        if (isFrontCamera) {
-            val flipped = Mat()
-            org.opencv.core.Core.flip(gray, flipped, 1)
-            gray.release()
-            gray = flipped
-            // grayData 与 Mat 数据需保持一致 (检测器同时使用两者)
-            if (grayData.size >= grayW * grayH) {
-                gray.get(0, 0, grayData)
+                    // 标定采样
+                    if (activeCalibrator != null) {
+                        feedCalibration(detResults, job.grayW, job.grayH)
+                    }
+
+                    // 测量
+                    val dispResults = engine.measureAll(detResults, job.timestamp)
+
+                    // 更新状态 (主线程)
+                    runOnUiThread {
+                        state.detectResults = detResults
+                        state.dispResults = dispResults
+                        state.imageSize = job.grayW to job.grayH
+                        state.frameNum++
+                        state.stats = engine.getStats()
+                    }
+                } finally {
+                    // 释放深拷贝的 Mat 资源 (无论检测成功与否)
+                    job.gray.release()
+                    job.cameraMatrix?.release()
+                    job.distCoeffs?.release()
+                }
+            } catch (e: InterruptedException) {
+                break
+            } catch (e: Exception) {
+                Log.e(TAG, "Detection failed: ${e.message}", e)
             }
         }
-
-        try {
-            // 检测
-            val detResults = detector.detect(
-                gray,
-                grayData,
-                grayW,
-                grayH,
-                if (useCalibration) cameraMatrix else null,
-                if (useCalibration) distCoeffs else null
-            )
-
-            // 标定采样 (向导打开且处于采样阶段时才会消费)
-            if (activeCalibrator != null) {
-                feedCalibration(detResults, grayW, grayH)
-            }
-
-            // 测量
-            val dispResults = engine.measureAll(detResults, timestamp)
-
-            // 更新状态 (必须在主线程)
-            runOnUiThread {
-                state.detectResults = detResults
-                state.dispResults = dispResults
-                state.imageSize = grayW to grayH
-                state.frameNum++
-                state.stats = engine.getStats()
-            }
-        } finally {
-            gray.release() // 释放每帧灰度 Mat, 避免内存泄漏导致后续帧检测失败
-        }
+        Log.i(TAG, "Detection thread stopped")
     }
 
     // 复用 ByteArray 缓冲, 避免每帧分配
@@ -740,9 +792,11 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        detectionThread.interrupt()
         analysisExecutor.shutdownNow()
+        frameQueue.clear()
         if (::cameraMatrix.isInitialized) cameraMatrix.release()
         if (::distCoeffs.isInitialized) distCoeffs.release()
+        super.onDestroy()
     }
 }

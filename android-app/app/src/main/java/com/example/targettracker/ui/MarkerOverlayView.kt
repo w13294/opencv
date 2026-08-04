@@ -34,6 +34,7 @@ class MarkerOverlayView @JvmOverloads constructor(
         invalidate()
     }
 
+    // 选中靶标: 高亮
     private val ellipsePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 5f
@@ -57,6 +58,31 @@ class MarkerOverlayView @JvmOverloads constructor(
     private val labelBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
         color = Color.parseColor("#CC121826") // Surface0 半透明
+    }
+
+    // 未选中靶标: 半透明淡色
+    private val dimEllipsePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+        color = Color.parseColor("#4D00E5A0") // 30% 青绿
+    }
+    private val dimQuadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#33FF5C6C") // 20% 红
+    }
+    private val dimCenterPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 2f
+        color = Color.parseColor("#4D21D4FD") // 30% 青
+    }
+    private val dimIdPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.parseColor("#4DEAF2FF") // 30% 白
+        textSize = 30f
+        isFakeBoldText = false
+    }
+    private val dimBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.FILL
+        color = Color.parseColor("#66121826") // 更透明
     }
     private val refRect = RectF()
 
@@ -88,6 +114,13 @@ class MarkerOverlayView @JvmOverloads constructor(
 
         for ((tid, det) in results) {
             val e = det.ellipse ?: continue
+            val isSelected = (s.selectedTargetId == null && results.size <= 1) || tid == s.selectedTargetId
+            val ePaint = if (isSelected) ellipsePaint else dimEllipsePaint
+            val qPaint = if (isSelected) quadPaint else dimQuadPaint
+            val xPaint = if (isSelected) centerCrossPaint else dimCenterPaint
+            val tPaint = if (isSelected) idPaint else dimIdPaint
+            val bPaint = if (isSelected) labelBgPaint else dimBgPaint
+
             // 用 Java getter 显式访问, 避免 Kotlin 与 stdlib.size/center 冲突
             val eCenter = e.center
             val eSize = e.size
@@ -99,19 +132,19 @@ class MarkerOverlayView @JvmOverloads constructor(
             refRect.set(cx - halfW, cy - halfH, cx + halfW, cy + halfH)
             canvas.save()
             canvas.rotate(e.angle.toFloat(), cx, cy)
-            canvas.drawOval(refRect, ellipsePaint)
+            canvas.drawOval(refRect, ePaint)
             canvas.restore()
 
             // 4 个象限质心点
             val corners: List<org.opencv.core.Point>? = det.corners
             corners?.forEach { p ->
-                canvas.drawCircle(mapX(p.x), mapY(p.y), 8f, quadPaint)
+                canvas.drawCircle(mapX(p.x), mapY(p.y), if (isSelected) 8f else 4f, qPaint)
             }
 
             // 中心十字
-            val cs = 22f
-            canvas.drawLine(cx - cs, cy, cx + cs, cy, centerCrossPaint)
-            canvas.drawLine(cx, cy - cs, cx, cy + cs, centerCrossPaint)
+            val cs = if (isSelected) 22f else 14f
+            canvas.drawLine(cx - cs, cy, cx + cs, cy, xPaint)
+            canvas.drawLine(cx, cy - cs, cx, cy + cs, xPaint)
 
             // ID + 尺寸 + 距离 标签
             val zArr = det.tvec?.get(2, 0)
@@ -121,15 +154,30 @@ class MarkerOverlayView @JvmOverloads constructor(
                 if (zMm >= 1000) " ${(zMm / 1000.0).let { "%.2f".format(it) }}m" else " ${zMm.toInt()}mm"
             }
             val label = "T$tid  ${sizeMm.toInt()}mm${distStr}"
-            val pad = 10f
-            val tw = idPaint.measureText(label)
-            val labelY = cy - halfH - 22f
+            val pad = if (isSelected) 10f else 6f
+            val tw = tPaint.measureText(label)
+            val labelY = cy - halfH - if (isSelected) 22f else 16f
+            val labelH = if (isSelected) 50f else 34f
             canvas.drawRoundRect(
-                cx - tw / 2f - pad, cy - halfH - 50f,
+                cx - tw / 2f - pad, cy - halfH - labelH,
                 cx + tw / 2f + pad, cy - halfH - 12f,
-                8f, 8f, labelBgPaint
+                8f, 8f, bPaint
             )
-            canvas.drawText(label, cx - tw / 2f, labelY, idPaint)
+            canvas.drawText(label, cx - tw / 2f, labelY, tPaint)
+
+            // 选中靶标额外绘制选中指示环
+            if (isSelected && results.size > 1) {
+                val selRing = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    style = Paint.Style.STROKE
+                    strokeWidth = 3f
+                    color = Color.parseColor("#FFFFD700") // 金色高亮环
+                }
+                canvas.save()
+                canvas.rotate(e.angle.toFloat(), cx, cy)
+                refRect.set(cx - halfW - 8f, cy - halfH - 8f, cx + halfW + 8f, cy + halfH + 8f)
+                canvas.drawOval(refRect, selRing)
+                canvas.restore()
+            }
         }
     }
 }
