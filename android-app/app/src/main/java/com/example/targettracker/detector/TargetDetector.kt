@@ -32,13 +32,22 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
 
     companion object {
         private const val TAG = "TargetDetector"
+        private const val EMA_ALPHA = 0.35  // EMA 平滑因子: 越小越稳定，越大越灵敏
     }
 
     // 追踪状态
     data class TrackedTarget(
-        val center: Point,
+        val center: Point,               // 原始中心, 用于帧间匹配
         val lostFrames: Int = 0,
-        val sizeMm: Double = 200.0
+        val sizeMm: Double = 200.0,
+        val lastResult: DetectionResult? = null,
+        // ── EMA 平滑状态 (叠加到 lastResult.center/ellipse/tvec) ──
+        val smoothCenter: Point = center,
+        val smoothEllipseW: Double = 0.0,
+        val smoothEllipseH: Double = 0.0,
+        val smoothTx: Double = 0.0,
+        val smoothTy: Double = 0.0,
+        val smoothTz: Double = 0.0
     )
 
     private val trackedTargets = mutableMapOf<Int, TrackedTarget>()
@@ -65,49 +74,76 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         distCoeffs: Mat?
     ): Map<Int, DetectionResult> {
         try {
-        // ──── 预处理 ────
-        // medianBlur: 大靶标用 ksize=5 平滑噪声; 小靶标用 ksize=3 避免破坏细结构
-        // (5x5 中值滤波会把直径 ~50px 的小靶标角点磨圆, 导致外环拟合失败)
-        val blurred = Mat()
-        Imgproc.medianBlur(gray, blurred, 3)
+        // ──── 分辨率自适应参数缩放 ────
+        val pixelCount = width.toDouble() * height.toDouble()
+        val basePixels = 640.0 * 480.0
+        val resScale = kotlin.math.sqrt(pixelCount / basePixels).coerceIn(0.5, 3.0)
 
-        // Otsu 二值化 (不取反: 黑色靶区域 = 255)
-        val thresh = Mat()
-        Imgproc.threshold(
-            blurred, thresh, 0.0, 255.0,
-            Imgproc.THRESH_OTSU  // 黑=0, 白=255
+        // 高斯模糊核: 必须奇数, ≥3
+        val blurSize = (3.0 * resScale).toInt().let { if (it % 2 == 0) it + 1 else it }.coerceAtLeast(3)
+        // 自适应阈值邻域大小: 必须奇数, ≥5
+        val blockSize = (7.0 * resScale).toInt().let { if (it % 2 == 0) it + 1 else it }.coerceAtLeast(5)
+        val cVal = (3.0 * resScale).coerceAtLeast(1.0)
+
+        // 1) 高斯模糊
+        val blurred = Mat()
+        Imgproc.GaussianBlur(gray, blurred, Size(blurSize.toDouble(), blurSize.toDouble()), 0.0)
+
+        // 2) 自适应阈值 (GAUSSIAN_C) + Otsu 全局阈值
+        val thr1 = Mat()
+        Imgproc.adaptiveThreshold(
+            blurred, thr1, 255.0,
+            Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
+            Imgproc.THRESH_BINARY_INV,
+            blockSize, cVal
         )
+        val thr2 = Mat()
+        Imgproc.threshold(
+            blurred, thr2, 0.0, 255.0,
+            Imgproc.THRESH_BINARY_INV or Imgproc.THRESH_OTSU
+        )
+        val thresh = Mat()
+        Core.bitwise_or(thr1, thr2, thresh)
+        thr1.release()
+        thr2.release()
         blurred.release()
 
-        // 形态学闭运算: 连接黑环细小缝隙
-        val kernel = Imgproc.getStructuringElement(
-            Imgproc.MORPH_ELLIPSE, Size(3.0, 3.0))
-        val closed = Mat()
-        Imgproc.morphologyEx(thresh, closed, Imgproc.MORPH_CLOSE, kernel)
-        kernel.release()
-        thresh.release()
-
-        // ──── 轮廓查找 (RETR_LIST 拿全部独立轮廓) ────
-        // 外环 + 内部 4 块黑象限 + 噪声 = 6+ 个独立轮廓
+        // ──── 轮廓查找 ────
         val contours = mutableListOf<MatOfPoint>()
         val hierarchy = Mat()
         Imgproc.findContours(
-            closed, contours, hierarchy,
-            Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE
+            thresh, contours, hierarchy,
+            Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE
         )
-        closed.release()
+        thresh.release()
 
-        val candidates = findQuadrantCandidates(contours, grayData, width, height)
+        val candidates = findQuadrantCandidates(contours, hierarchy, grayData, width, height)
         hierarchy.release()
         contours.forEach { it.release() }
+
+        if (candidates.isEmpty()) {
+            // 无新检测: 返回已追踪目标的持久化结果 (帧间保持可见)
+            updateTracking(emptyMap())
+            val persistingResults = mutableMapOf<Int, DetectionResult>()
+            for ((id, t) in trackedTargets) {
+                t.lastResult?.let { persistingResults[id] = it }
+            }
+            return persistingResults
+        }
 
         // ──── ID 分配 + PnP 求解 ────
         val results = assignAndSolve(candidates, cameraMatrix, distCoeffs)
 
         updateTracking(results)
-        return results
+
+        // 返回 EMA 平滑后的结果 (从 trackedTargets.lastResult 取出, 而非原始 results)
+        val smoothedResults = mutableMapOf<Int, DetectionResult>()
+        for ((tid, t) in trackedTargets) {
+            t.lastResult?.let { smoothedResults[tid] = it }
+        }
+        return smoothedResults
         } catch (e: Exception) {
-            Log.e(TAG, "detect() EXCEPTION: ${e.message}")
+            Log.e(TAG, "detect() EXCEPTION: ${e.message}", e)
             return emptyMap()
         }
     }
@@ -115,263 +151,258 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
     /**
      * 寻找符合"外环 + 内部对角黑色象限"特征的候选
      *
-     * 外环: 用 RETR_LIST 轮廓 + fitEllipse 找圆形外环
-     * 象限判定: 在灰度图 (ByteArray) 上对 4 个方向 (0/90/180/270) 的环形扇区统计平均灰度.
-     *   黑象限 = 平均灰度低(暗), 白象限 = 高(亮). 不依赖二值化内部轮廓分离, 抗抖动强.
-     *   使用 ByteArray 直接索引 (而非 gray.get(y,x) JNI), 帧率提升显著.
+     * 严格对齐 Windows 端 detector.py 的 detect() 流程:
+     *  1) RETR_TREE 递归后代收集 (collect_descendants)
+     *  2) 按面积比筛选象限候选 (1%~45% 外环面积)
+     *  3) 取面积前 2 的象限 -> 对角夹角验证 (>=100° / fallback 90°)
+     *  4) 外环椭圆拟合 + 圆度 + 象限面积比一致性
+     *  5) 质量评分 (angle/area/ratio 加权)
      */
+    private var debugFrameCount = 0
+    private var debugLastLogTime = 0L
+    private var debugLastLogTime2 = 0L
+
     private fun findQuadrantCandidates(
         contours: List<MatOfPoint>,
+        hierarchy: Mat,
         grayData: ByteArray,
         width: Int,
         height: Int
     ): List<Candidate> {
-        if (contours.isEmpty()) return emptyList()
-
-        // 统计所有轮廓的面积和位置
-        val n = contours.size
-        val areas = DoubleArray(n)
-        val centroids = Array(n) { Point() }
-        val validContour = BooleanArray(n)
-
-        for (i in 0 until n) {
-            areas[i] = Imgproc.contourArea(contours[i])
-            val bb = Imgproc.boundingRect(contours[i])
-            centroids[i] = Point(bb.x + bb.width / 2.0, bb.y + bb.height / 2.0)
-            validContour[i] = areas[i] > 100
+        if (contours.isEmpty()) {
+            Log.w(TAG, "DEBUG: 0 contours found!")
+            return emptyList()
         }
 
-        // 收集外环候选 (圆形度高 + 面积较大)
-        val outerCandidates = mutableListOf<OuterCandidate>()
+        val n = contours.size
+        val wD = width.toDouble()
+        val hD = height.toDouble()
+        val hCols = hierarchy.cols()
+        val hRows = hierarchy.rows()
+        val hType = hierarchy.type()
+
+        // 每15秒打印一次摘要 (降低日志量)
+        val now = System.currentTimeMillis()
+        if (now - debugLastLogTime > 15000) {
+            debugLastLogTime = now
+            Log.i(TAG, "Detector info: res=${width}x${height} contours=$n")
+        }
+
+        // 分辨率自适应面积缩放 (必须在 collectDescendants 之前定义)
+        val areaScale = (wD * hD) / (640.0 * 480.0)
+        val minArea = (500.0 * areaScale).coerceAtLeast(300.0)
+        val minChildArea = (20.0 * areaScale).coerceAtLeast(10.0)
+
+        // 递归收集某个轮廓的所有后代 (深度 <= 5)
+        // 关键: OpenCV Android hierarchy 返回 CV_32SC4 (4通道int32), 必须用 int[] 读取!
+        // 每个轮廓的 [next,prev,child,parent] 是同一列的4个通道
+        fun collectDescendants(parentIdx: Int, depth: Int = 0): List<Map<String, Any>> {
+            if (depth > 5) return emptyList()
+            val result = mutableListOf<Map<String, Any>>()
+            val hData = IntArray(4)  // 必须 int[]: hierarchy 深度是 CV_32S
+            hierarchy.get(0, parentIdx, hData)
+            var child = hData[2]   // hierarchy[parentIdx][2] = first child
+            while (child >= 0) {
+                if (child >= n) break
+                val childArea = Imgproc.contourArea(contours[child])
+                if (childArea > minChildArea) {  // 对齐 Python: minChildArea 按分辨率缩放
+                    val M = Imgproc.moments(contours[child], false)
+                    if (M.m00 != 0.0) {
+                        result.add(mapOf(
+                            "idx" to child,
+                            "area" to childArea,
+                            "cx" to (M.m10 / M.m00),
+                            "cy" to (M.m01 / M.m00),
+                            "depth" to depth
+                        ))
+                    }
+                }
+                // 递归收集孙子轮廓
+                result.addAll(collectDescendants(child, depth + 1))
+                hierarchy.get(0, child, hData)
+                child = hData[0]   // hierarchy[child][0] = next sibling
+            }
+            return result
+        }
+
+        var cntPassArea = 0
+        var cntPassDesc = 0
+        var cntPassInnerArea = 0
+        var cntPassQuad = 0
+        var cntPassAngle = 0
+        var cntPassAreaRatio = 0
+        var cntPassEllipse = 0
+        var cntPassEdge = 0
+
+        val candidates = mutableListOf<Candidate>()
         for (i in 0 until n) {
-            if (!validContour[i]) continue
+            val area = Imgproc.contourArea(contours[i])
+            // 面积过滤: 太小是噪声, 太大是背景/边缘 (对齐 Python: area < 500 且按分辨率缩放)
+            if (area < minArea || area > wD * hD * 0.25) continue
+            cntPassArea++
+
+            // 必须有至少一个后代轮廓 (外环内部的子结构)
+            val allDescendants = collectDescendants(i)
+            if (allDescendants.isEmpty()) continue
+            cntPassDesc++
+
+            // 后代总面积应占外环的合理比例
+            val totalInnerArea = allDescendants.sumOf { it["area"] as Double }
+            if (totalInnerArea < area * 0.1 || totalInnerArea > area * 0.95) continue
+            cntPassInnerArea++
+
+            // ──── 调试: 打印通过前三层过滤的候选详情 (仅每15秒) ────
+            val nowDetail = System.currentTimeMillis()
+            if (nowDetail - debugLastLogTime2 > 15000) {
+                val minArea = area * 0.01; val maxArea = area * 0.45
+                val descInfo = allDescendants.joinToString("; ") {
+                    "d${it["idx"]}@d${it["depth"]}(A=${"%.0f".format(it["area"] as Double)},[minA=%.0f,maxA=%.0f])".format(minArea, maxArea)
+                }
+                Log.i(TAG, "DEBUG quad-chk: outer#${i} area=%.0f, totalInner=%.0f ratio=%.2f; ${allDescendants.size} desc: $descInfo"
+                    .format(area, totalInnerArea, totalInnerArea / area))
+            }
+
+            // 筛选象限候选: 面积在外环 1%~45% 之间的后代
+            var quadrants = allDescendants.filter {
+                val a = it["area"] as Double
+                a > area * 0.01 && a < area * 0.45
+            }
+
+            var fallbackMode = false
+            var mergedQuadrant = false  // 单后代模式 (低分辨率下象限合并)
+            if (quadrants.size < 2) {
+                val sorted = allDescendants.sortedByDescending { it["area"] as Double }
+                if (sorted.size >= 2) {
+                    quadrants = sorted.take(2)
+                    fallbackMode = true
+                } else if (sorted.size == 1) {
+                    // 单后代: 象限因分辨率限制而合并，椭圆中心验证兜底
+                    quadrants = sorted  // 1元素
+                    fallbackMode = true
+                    mergedQuadrant = true
+                } else {
+                    continue
+                }
+            } else if (quadrants.size > 2) {
+                quadrants = quadrants.sortedByDescending { it["area"] as Double }.take(2)
+            }
+            cntPassQuad++
+
+            val cx1 = quadrants[0]["cx"] as Double
+            val cy1 = quadrants[0]["cy"] as Double
+            val cx2: Double
+            val cy2: Double
+            if (mergedQuadrant) {
+                cx2 = cx1; cy2 = cy1  // 单后代无第二象限
+            } else {
+                cx2 = quadrants[1]["cx"] as Double
+                cy2 = quadrants[1]["cy"] as Double
+            }
+
+            // ──── 对角验证 ────
+            val angleDeg: Double
+            val areaRatioQuad: Double
+            if (mergedQuadrant) {
+                angleDeg = 180.0; areaRatioQuad = 1.0  // 跳过角度/面积验证
+            } else {
+                val oCx = (cx1 + cx2) / 2.0
+                val oCy = (cy1 + cy2) / 2.0
+                val v1x = cx1 - oCx; val v1y = cy1 - oCy
+                val v2x = cx2 - oCx; val v2y = cy2 - oCy
+                val dist1 = Math.sqrt(v1x * v1x + v1y * v1y)
+                val dist2 = Math.sqrt(v2x * v2x + v2y * v2y)
+                if (dist1 < 3.0 || dist2 < 3.0) continue
+
+                val cosAngle = ((v1x * v2x + v1y * v2y) / (dist1 * dist2))
+                    .coerceIn(-1.0, 1.0)
+                angleDeg = Math.toDegrees(Math.acos(cosAngle))
+                val minAngle = if (fallbackMode) 90.0 else 100.0
+                if (angleDeg < minAngle) continue
+
+                val a1 = quadrants[0]["area"] as Double
+                val a2 = quadrants[1]["area"] as Double
+                areaRatioQuad = Math.max(a1, a2) / (Math.min(a1, a2) + 1.0)
+                val maxRatio = if (fallbackMode) 5.0 else 3.5
+                if (areaRatioQuad > maxRatio) continue
+            }
+            cntPassAngle++
+            cntPassAreaRatio++
+
+            // ──── 外轮廓椭圆拟合 ────
             if (contours[i].total() < 5) continue
             val contour2f = MatOfPoint2f(*contours[i].toArray())
-            val ellipse = try {
-                Imgproc.fitEllipse(contour2f)
-            } catch (e: Exception) {
+            val ellipse: RotatedRect
+            val ratio: Double
+            try {
+                val e = Imgproc.fitEllipse(contour2f)
+                contour2f.release()
+                val axisA = e.size.width
+                val axisB = e.size.height
+                if (axisA < 1.0 || axisB < 1.0) continue
+                val maxAxis = Math.max(axisA, axisB)
+                if (maxAxis == 0.0) continue
+                ratio = Math.min(axisA, axisB) / maxAxis
+                // 外环必须接近圆形 (回退/合并模式下更宽松，但单后代需要更高圆度)
+                val minRatio = if (mergedQuadrant) 0.78 else if (fallbackMode) 0.5 else 0.7
+                if (ratio < minRatio) continue
+                ellipse = e
+            } catch (ex: Exception) {
                 contour2f.release()
                 continue
             }
-            contour2f.release()
+            cntPassEllipse++
 
-            val w = ellipse.size.width
-            val h = ellipse.size.height
-            val ratio = Math.min(w, h) / Math.max(w, h)
-            if (ratio < 0.5) continue
+            // 边缘排除
+            val ex = ellipse.center.x
+            val ey = ellipse.center.y
+            val margin = 20.0
+            if (ex < margin || ex > wD - margin || ey < margin || ey > hD - margin) continue
+            cntPassEdge++
 
-            val center = ellipse.center
-            val radius = (w + h) / 4.0
-            outerCandidates.add(OuterCandidate(i, ellipse, center, radius, ratio, 0.0, areas[i]))
-        }
-        outerCandidates.sortByDescending { it.area }
+            // 象限质心 (2 点, 对齐 Windows 端 c_pts)
+            val qc = arrayOf(Point(cx1, cy1), Point(cx2, cy2))
 
-        if (outerCandidates.isEmpty()) return emptyList()
-
-        // 4 个象限中心方向角度 (0=右,90=下,180=左,270=上)
-        // 4 对角方向 (screen coord atan2): 右上=315°, 右下=45°, 左下=135°, 左上=225°
-        // 黑象限: 右上(270-360) + 左下(90-180) → dirAngles[0]=右上 + dirAngles[2]=左下 应是黑
-        // 即 isBlack[0]=T, isBlack[2]=T, isBlack[1]=F, isBlack[3]=F → 0+2 对角同色=黑
-        val dirAngles = doubleArrayOf(315.0, 45.0, 135.0, 225.0)
-        // 扇区宽度自适应: 大靶标内缩到环核心, 小靶标略微外扩以采集更多像素
-        val rInFrac = 0.30
-        val rOutFrac = 0.70
-        val sectorHalfDeg = 50.0
-        // 图像对角线长度 (用于把绝对像素尺寸归一化为占比)
-        val imgDiag = Math.sqrt(width * width + height * height.toDouble())
-
-        val candidates = mutableListOf<Candidate>()
-        for (oc in outerCandidates) {
-            val cx = oc.center.x
-            val cy = oc.center.y
-            val R = oc.radius
-            val rIn = rInFrac * R
-            val rOut = rOutFrac * R
-
-            val sums = DoubleArray(4)
-            val counts = IntArray(4)
-
-            val x0 = Math.max(0, Math.floor(cx - rOut).toInt())
-            val x1 = Math.min(width - 1, Math.ceil(cx + rOut).toInt())
-            val y0 = Math.max(0, Math.floor(cy - rOut).toInt())
-            val y1 = Math.min(height - 1, Math.ceil(cy + rOut).toInt())
-            val rOut2 = rOut * rOut
-            val rIn2 = rIn * rIn
-
-            // 直接读 ByteArray (CV_8UC1 连续), 无 JNI 开销
-            for (y in y0..y1) {
-                val rowBase = y * width
-                val dy = y - cy
-                val dy2 = dy * dy
-                if (dy2 > rOut2) continue
-                for (x in x0..x1) {
-                    val dx = x - cx
-                    val dist2 = dx * dx + dy2
-                    if (dist2 < rIn2 || dist2 > rOut2) continue
-                    val ang = Math.toDegrees(Math.atan2(dy.toDouble(), dx.toDouble()))
-                    var bestDir = -1
-                    var bestDiff = Double.MAX_VALUE
-                    for (d in 0..3) {
-                        // 归一化角度差到 [0, 180]
-                        var diff = Math.abs(ang - dirAngles[d]) % 360.0
-                        if (diff > 180) diff = 360 - diff
-                        if (diff <= sectorHalfDeg && diff < bestDiff) {
-                            bestDiff = diff
-                            bestDir = d
-                        }
-                    }
-                    if (bestDir < 0) continue
-                    val v = grayData[rowBase + x].toInt() and 0xFF
-                    sums[bestDir] = sums[bestDir] + v
-                    counts[bestDir] = counts[bestDir] + 1
-                }
+            // 质量评分 (严格对齐 Windows 端)
+            val quality: Double = if (mergedQuadrant) {
+                0.25  // 合并象限模式: 基础质量分
+            } else if (fallbackMode) {
+                0.25  // 回退模式质量较低
+            } else {
+                val angleScore = Math.min(1.0, (angleDeg - 100.0) / 80.0)
+                val areaConsistency = 1.0 - (areaRatioQuad - 1.0) / 2.5
+                Math.max(0.3, 0.4 * ((ratio - 0.7) / 0.3) + 0.3 * angleScore + 0.3 * areaConsistency)
             }
 
-            var valid = true
-            val quadMean = DoubleArray(4)
-            for (d in 0..3) {
-                if (counts[d] == 0) { valid = false; break }
-                quadMean[d] = sums[d] / counts[d]
-            }
-            if (!valid) continue
+            // ──── 质量阈值: 宽松过滤，只排除明显噪声 ────
+            if (quality < 0.15) continue
 
-            val minMean = quadMean.minOrNull()!!
-            val maxMean = quadMean.maxOrNull()!!
-            val contrast = maxMean - minMean
-            // 调试: 打印扇区灰度 (临时)
-            if (oc.area > 50) {
-                // Log.d(TAG, "  cx=($cx,$cy) R=$R area=${oc.area.toInt()} quadMean=[${quadMean[0].toInt()},${quadMean[1].toInt()},${quadMean[2].toInt()},${quadMean[3].toInt()}] contrast=${contrast.toInt()}")
-            }
-            // 每个候选按自身尺寸决定阈值 (避免大靶标把全场景判定为"严苛场景")
-            val candSizeRatio = (R * 2.0 / imgDiag).coerceIn(0.005, 1.0)
-            val contrastThr = if (candSizeRatio < 0.10) 5.0 else 25.0
-            val bwRatioThr = if (candSizeRatio < 0.10) 0.10 else 0.35
+            // ──── 椭圆中心对齐验证: 象限质心中点应靠近椭圆中心 (靶标同心结构) ────
+            // 合并象限模式: 单后代中心在椭圆中心 50% 半径内
+            val quadMidX = if (mergedQuadrant) cx1 else (cx1 + cx2) / 2.0
+            val quadMidY = if (mergedQuadrant) cy1 else (cy1 + cy2) / 2.0
+            val dxCenter = quadMidX - ellipse.center.x
+            val dyCenter = quadMidY - ellipse.center.y
+            val centerDist = Math.sqrt(dxCenter * dxCenter + dyCenter * dyCenter)
+            val ellipseRadius = Math.max(ellipse.size.width, ellipse.size.height) / 2.0
+            val maxCenterDist = if (mergedQuadrant) ellipseRadius * 0.5 else ellipseRadius * 0.6
+            if (centerDist > maxCenterDist) continue
 
-            // 黑白对比必须显著 (过低视为背景噪声); 小靶标阈值放宽
-            if (contrast < contrastThr) {
-                if (oc.area > 200) Log.d(TAG, "  R=$R contrast=${contrast.toInt()} < $contrastThr reject")
-                continue
-            }
-
-            // 灰度低 = 暗 = 黑象限; 灰度高 = 亮 = 白象限
-            // 用象限的相对深浅而非绝对阈值分类: 计算 4 个象限的相对排名
-            // 排序后: 最深的两个 vs 最浅的两个, 若对角象限都同侧 (均深或均浅) 即合格
-            val sortedIdx = (0..3).sortedBy { quadMean[it] }
-            // 深色排名 0,1 与浅色排名 2,3
-            val darkSet = sortedIdx.take(2).toSet()
-            // 必须对角: 0-2 或 1-3 同属"深色" (即真实靶标的对角黑)
-            val d0 = 0 in darkSet
-            val d1 = 1 in darkSet
-            val d2 = 2 in darkSet
-            val d3 = 3 in darkSet
-            val isDiag = (d0 && d2 && !d1 && !d3) || (d1 && d3 && !d0 && !d2)
-            if (!isDiag) {
-                if (oc.area > 200) Log.d(TAG, "  R=$R not diagonal dark=$darkSet reject (quadMean=${quadMean.map { it.toInt() }})")
-                continue
-            }
-            // 黑白对比强度比 (用最深 2 象限均值 vs 最浅 2 象限均值)
-            val darkMean = (quadMean[sortedIdx[0]] + quadMean[sortedIdx[1]]) / 2.0
-            val lightMean = (quadMean[sortedIdx[2]] + quadMean[sortedIdx[3]]) / 2.0
-            val bwRatio = (lightMean - darkMean) / Math.max(lightMean, 1.0)
-            if (bwRatio < bwRatioThr) {
-                if (oc.area > 200) Log.d(TAG, "  R=$R bwRatio=${"%.2f".format(bwRatio)} < $bwRatioThr reject (quadMean=${quadMean.map { it.toInt() }})")
-                continue
-            }
-
-            // ───── 圆环完整性检查 (避免截断的靶标、孤立黑色斑块被误识别) ─────
-            // 将外环轮廓绕候选中心均匀采样 24 个角度, 统计每个角度上有多少个轮廓
-            // 点 (即"这一角度是否有外环经过"); 完整圆环应至少覆盖 18/24 角度.
-            // 截断的靶标 (贴在画面边缘) 缺失弧段, 覆盖角度数显著下降.
-            val ringHist = IntArray(24)
-            val pts = contours[oc.idx].toArray()
-            for (p in pts) {
-                val ang = Math.atan2(p.y - cy, p.x - cx)
-                val angPos = if (ang < 0) ang + 2.0 * Math.PI else ang
-                val bin = ((angPos / (2.0 * Math.PI)) * 24.0).toInt().coerceIn(0, 23)
-                ringHist[bin]++
-            }
-            val populatedBins = ringHist.count { it > 0 }
-            if (populatedBins < 18) {
-                if (oc.area > 200) Log.d(TAG, "  R=$R incomplete ring: only $populatedBins/24 bins populated reject")
-                continue
-            }
-
-            // ───── 内白圆占比 (防止黑色弧形/斑块误识别) ─────
-            // 完整靶标内圆 (r < 0.6R) 应有大面积白色 (X 形十字臂 + 4 个白象限);
-            // 截断的靶标只剩一半, 白色面积必然 < 35% 或 > 95%.
-            // 内白阈值用已计算出的深浅中点 (避免依赖 Otsu 在小区域失灵)
-            val innerThr = (sortedIdx.let { (quadMean[sortedIdx[0]] + quadMean[sortedIdx[3]]) / 2.0 })
-            var innerCount = 0
-            var innerWhite = 0
-            val innerR = (0.60 * R * 0.60 * R).toInt()
-            val ix0 = Math.max(0, Math.floor(cx - 0.6 * R).toInt())
-            val ix1 = Math.min(width - 1, Math.ceil(cx + 0.6 * R).toInt())
-            val iy0 = Math.max(0, Math.floor(cy - 0.6 * R).toInt())
-            val iy1 = Math.min(height - 1, Math.ceil(cy + 0.6 * R).toInt())
-            for (y in iy0..iy1) {
-                val rowBase = y * width
-                val dy = (y - cy)
-                val dy2 = dy * dy
-                if (dy2 > innerR) continue
-                for (x in ix0..ix1) {
-                    val dx = x - cx
-                    val d2 = dx * dx + dy2
-                    if (d2 > innerR) continue
-                    innerCount++
-                    val g = grayData[rowBase + x].toInt() and 0xFF
-                    if (g > innerThr) innerWhite++
-                }
-            }
-            val innerWhiteRatio = if (innerCount > 0) innerWhite.toDouble() / innerCount else 0.0
-            // 完整靶标: 内圆中黑象限占 ~30% (2/4 个黑色三角), 其余 ~70% 白色;
-            // 但因为 X 形十字臂也是白色, 实际白占 60-80%
-            if (innerWhiteRatio < 0.30 || innerWhiteRatio > 0.95) {
-                if (oc.area > 200) Log.d(TAG, "  R=$R innerWhiteRatio=${"%.2f".format(innerWhiteRatio)} reject")
-                continue
-            }
-
-            // ───── 边界判定 ─────
-// 原本的边界截断检查会误杀大靶标 (占画面 60% 的 T0 也被判定为"截断"),
-// 实际上圆环角度覆盖已经能识别真正的截断, 这里直接跳过此关卡.
-
-            val quadCenters = Array(4) { idx ->
-                val ang = dirAngles[idx] * Math.PI / 180.0
-                Point(cx + 0.6 * R * Math.cos(ang), cy + 0.6 * R * Math.sin(ang))
-            }
-
-            val quality = contrast / 255.0 * 0.6 + bwRatio * 0.4
-            candidates.add(Candidate(oc.ellipse, quadCenters, oc.area, quality, oc.ratio))
+            candidates.add(Candidate(ellipse, qc, area, quality, ratio))
         }
 
-        // 去重 (NMS): 椭圆中心距离 < 0.7 倍的较大半径 视为同一靶标
-        val deduped = mutableListOf<Candidate>()
-        for (c in candidates.sortedByDescending { it.area }) {
-            val isDup = deduped.any { existing ->
-                val dx = c.ellipse.center.x - existing.ellipse.center.x
-                val dy = c.ellipse.center.y - existing.ellipse.center.y
-                val dist = Math.sqrt(dx * dx + dy * dy)
-                val cR = (c.ellipse.size.width + c.ellipse.size.height) / 4.0
-                val exR = (existing.ellipse.size.width + existing.ellipse.size.height) / 4.0
-                dist < Math.max(cR, exR) * 0.7
-            }
-            if (!isDup) deduped.add(c)
+        // 每15秒汇总一次过滤统计
+        val now2 = System.currentTimeMillis()
+        if (now2 - debugLastLogTime2 > 15000) {
+            debugLastLogTime2 = now2
+            Log.i(TAG, "Filter: Area=${cntPassArea} Desc=${cntPassDesc} InnerArea=${cntPassInnerArea} Quad=${cntPassQuad} Angle=${cntPassAngle} AreaR=${cntPassAreaRatio} Ellipse=${cntPassEllipse} Edge=${cntPassEdge} Final=${candidates.size}")
         }
 
-        if (deduped.isEmpty() && outerCandidates.isNotEmpty()) {
-            Log.w(TAG, "No valid candidates (outer=${outerCandidates.size})")
+        if (candidates.isEmpty()) {
+            Log.w(TAG, "No valid candidates")
         }
-        return deduped
+        return candidates
     }
 
-    private data class OuterCandidate(
-        val idx: Int,
-        val ellipse: RotatedRect,
-        val center: Point,
-        val radius: Double,
-        val ratio: Double,
-        val theoArea: Double,
-        val area: Double
-    )
 
     /**
      * 按面积排序分配 ID + PnP 位姿求解
@@ -381,42 +412,37 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         cameraMatrix: Mat?,
         distCoeffs: Mat?
     ): Map<Int, DetectionResult> {
-        if (candidates.isEmpty()) {
-            trackedTargets.forEach { (id, t) ->
-                val newLost = t.lostFrames + 1
-                if (newLost < lostTimeout) {
-                    trackedTargets[id] = t.copy(lostFrames = newLost)
-                }
-            }
-            trackedTargets.entries.removeAll { it.value.lostFrames >= lostTimeout }
-            return emptyMap()
-        }
+        // candidates 必定非空 (调用前已检查)
 
         val sorted = candidates.sortedByDescending { it.area }
 
-        // 最近邻匹配
+        // ──── 全局最近邻匹配 ────
+        // 旧实现按面积顺序贪心: 先轮到的候选可以抢走"几何上更属于别人"的 ID,
+        // 导致相邻两帧 T0/T1 互换 (表现为"重新识别错误").
+        // 改为收集所有 (候选, 轨迹) 距离对, 按距离从小到大全局择优.
         val assignedIds = mutableMapOf<Int, Int>()
         val usedTids = mutableSetOf<Int>()
 
+        data class Pair2(val si: Int, val tid: Int, val dist: Double)
+        val pairs = mutableListOf<Pair2>()
         for ((si, cand) in sorted.withIndex()) {
-            val cc = Point(cand.ellipse.center.x, cand.ellipse.center.y)
-            var bestTid: Int? = null
-            var bestDist = Double.MAX_VALUE
+            val cc = cand.ellipse.center
+            val candR = (cand.ellipse.size.width + cand.ellipse.size.height) / 4.0
             for ((tid, t) in trackedTargets) {
-                if (tid in usedTids) continue
-                val dist = Math.sqrt(
-                    (cc.x - t.center.x) * (cc.x - t.center.x) +
-                    (cc.y - t.center.y) * (cc.y - t.center.y)
-                )
-                if (dist < bestDist && dist < targetConfig.minDistancePx) {
-                    bestDist = dist
-                    bestTid = tid
-                }
+                val dx = cc.x - t.center.x
+                val dy = cc.y - t.center.y
+                val dist = Math.sqrt(dx * dx + dy * dy)
+                if (dist >= targetConfig.minDistancePx) continue
+                // 允许的位移随目标尺寸放宽: 大靶标在画面里本来就移动得快
+                if (dist > Math.max(targetConfig.minDistancePx * 0.5, candR * 1.5)) continue
+                pairs.add(Pair2(si, tid, dist))
             }
-            if (bestTid != null) {
-                assignedIds[si] = bestTid
-                usedTids.add(bestTid)
-            }
+        }
+        pairs.sortBy { it.dist }
+        for (p in pairs) {
+            if (p.si in assignedIds || p.tid in usedTids) continue
+            assignedIds[p.si] = p.tid
+            usedTids.add(p.tid)
         }
 
         // 未匹配的分配新 ID: 取最小未占用 tid, 避免错位 (旧版用 sorted 索引当 ID, 导致 T0+T3 → T1)
@@ -451,22 +477,16 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             val halfW = cand.ellipse.size.width / 2.0
             val halfH = cand.ellipse.size.height / 2.0
             val angleRad = Math.toRadians(cand.ellipse.angle.toDouble())
-
             val cosA = Math.cos(angleRad)
             val sinA = Math.sin(angleRad)
-
-            fun rotatePoint(dx: Double, dy: Double): Point {
-                return Point(
-                    cxEl + dx * cosA - dy * sinA,
-                    cyEl + dx * sinA + dy * cosA
-                )
-            }
-
+            fun rotPt(dx: Double, dy: Double): Point = Point(
+                cxEl + dx * cosA - dy * sinA,
+                cyEl + dx * sinA + dy * cosA
+            )
+            // PnP 用椭圆 4 个极端点 (16点, 4角), 子轮廓质心 (2点) 仅用于渲染
             val imagePoints = MatOfPoint2f(
-                rotatePoint(-halfW, -halfH),
-                rotatePoint( halfW, -halfH),
-                rotatePoint( halfW,  halfH),
-                rotatePoint(-halfW,  halfH)
+                rotPt(-halfW, -halfH), rotPt( halfW, -halfH),
+                rotPt( halfW,  halfH), rotPt(-halfW,  halfH)
             )
 
             if (cameraMatrix != null && !cameraMatrix.empty()) {
@@ -538,10 +558,80 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         val detected = results.values.filter { it.success }
         val allTids = results.keys.toSet()
 
+        // 成功检测: 应用 EMA 平滑，重置 lostFrames
         for (r in detected) {
-            trackedTargets[r.targetId] = TrackedTarget(r.center, 0)
+            val prev = trackedTargets[r.targetId]
+
+            if (prev != null && prev.smoothEllipseW > 0.0) {
+                // ── 已有平滑状态: EMA 插值 ──
+                val scx = prev.smoothCenter.x + EMA_ALPHA * (r.center.x - prev.smoothCenter.x)
+                val scy = prev.smoothCenter.y + EMA_ALPHA * (r.center.y - prev.smoothCenter.y)
+
+                val el = r.ellipse!!  // 检测成功时 ellipse 一定非 null
+                val ew = el.size.width
+                val eh = el.size.height
+                val sew = prev.smoothEllipseW + EMA_ALPHA * (ew - prev.smoothEllipseW)
+                val seh = prev.smoothEllipseH + EMA_ALPHA * (eh - prev.smoothEllipseH)
+
+                // EMA 平滑 3D 位姿 tvec [tx, ty, tz]
+                val curT = DoubleArray(3)
+                r.tvec.get(0, 0, curT)
+                val stx = prev.smoothTx + EMA_ALPHA * (curT[0] - prev.smoothTx)
+                val sty = prev.smoothTy + EMA_ALPHA * (curT[1] - prev.smoothTy)
+                val stz = prev.smoothTz + EMA_ALPHA * (curT[2] - prev.smoothTz)
+
+                // 构建平滑后的 DetectionResult (ellipse + tvec 同步平滑)
+                val smoothedEllipse = RotatedRect(
+                    Point(scx, scy),
+                    Size(sew, seh),
+                    el.angle.toDouble()
+                )
+                val smoothedTvec = Mat(3, 1, CvType.CV_64F)
+                smoothedTvec.put(0, 0, stx, sty, stz)
+
+                val smoothedResult = r.copy(
+                    center = Point(scx, scy),
+                    ellipse = smoothedEllipse,
+                    tvec = smoothedTvec,
+                    corners = r.corners  // 保留象限质心点用于 UI 渲染
+                )
+
+                trackedTargets[r.targetId] = TrackedTarget(
+                    center = r.center,  // 原始中心用于帧间匹配，不用平滑值
+                    lostFrames = 0,
+                    sizeMm = r.sizeMm,
+                    lastResult = smoothedResult,
+                    smoothCenter = Point(scx, scy),
+                    smoothEllipseW = sew,
+                    smoothEllipseH = seh,
+                    smoothTx = stx,
+                    smoothTy = sty,
+                    smoothTz = stz
+                )
+            } else {
+                // 首次检测该目标: 初始化平滑状态
+                val curT = DoubleArray(3)
+                r.tvec.get(0, 0, curT)
+                val elInit = r.ellipse!!
+                val ew = elInit.size.width
+                val eh = elInit.size.height
+
+                trackedTargets[r.targetId] = TrackedTarget(
+                    center = r.center,
+                    lostFrames = 0,
+                    sizeMm = r.sizeMm,
+                    lastResult = r,
+                    smoothCenter = r.center,
+                    smoothEllipseW = ew,
+                    smoothEllipseH = eh,
+                    smoothTx = curT[0],
+                    smoothTy = curT[1],
+                    smoothTz = curT[2]
+                )
+            }
         }
 
+        // 未匹配的追踪目标: 累计丢失帧数
         for ((tid, t) in trackedTargets.toMap()) {
             if (tid !in allTids) {
                 val lost = t.lostFrames + 1

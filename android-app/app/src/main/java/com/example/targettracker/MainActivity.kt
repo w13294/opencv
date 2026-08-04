@@ -22,7 +22,11 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import android.hardware.camera2.CameraCharacteristics
 import com.example.targettracker.camera.CameraAnalyzer
 import com.example.targettracker.config.CalibrationData
+import com.example.targettracker.config.CalibrationStore
 import com.example.targettracker.config.Config
+import com.example.targettracker.config.DistanceCalibrator
+import com.example.targettracker.ui.CalibStage
+import com.example.targettracker.ui.CalibUiState
 import com.example.targettracker.detector.TargetDetector
 import com.example.targettracker.engine.DisplacementEngine
 import com.example.targettracker.ui.MainScreen
@@ -39,6 +43,15 @@ class MainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "TargetTracker"
+
+        val resolutionOptions = listOf(
+            android.util.Size(640, 480),
+            android.util.Size(1280, 720),
+            android.util.Size(1920, 1080),
+            android.util.Size(2560, 1440),
+            android.util.Size(3840, 2160)
+        )
+        val resolutionLabels = listOf("640x480", "1280x720", "1920x1080", "2560x1440", "3840x2160")
     }
 
     private val state = TargetTrackerState()
@@ -64,6 +77,10 @@ class MainActivity : ComponentActivity() {
     // 已有相机绑定的 previewView
     private var previewView: PreviewView? = null
 
+    // ── 相机启动防并发 guard ──
+    @Volatile private var cameraStarting = false
+    @Volatile private var pendingCameraStart = false
+
     // ──── 多摄像头支持 ────
     data class CameraOption(
         val id: String,            // Camera2 cameraId (如 "0", "1")
@@ -87,6 +104,21 @@ class MainActivity : ComponentActivity() {
     val currentZoomState = mutableStateOf(1.0f)
     // 当前是否前摄 (前摄画面水平镜像, 需翻转后再检测)
     @Volatile private var isFrontCamera = false
+
+    // ──── 距离标定 ────
+    /** 标定向导 UI 状态 (null = 未打开) */
+    val calibUiState = mutableStateOf<CalibUiState?>(null)
+    /** 采样中的标定器, 由检测线程投喂 */
+    @Volatile private var activeCalibrator: DistanceCalibrator? = null
+    /** 采样完成待用户确认的结果 */
+    private var pendingCalib: CalibrationData? = null
+
+    /** 当前摄像头的 Camera2 id, 作为标定存储的键 */
+    private fun currentCameraId(): String =
+        availableCameras.getOrNull(currentCameraIndex)?.id ?: "0"
+
+    private fun currentCameraLabel(): String =
+        availableCameras.getOrNull(currentCameraIndex)?.label ?: "默认摄像头"
 
     // ──── 权限请求 ────
     private val requestPermissionLauncher =
@@ -126,22 +158,35 @@ class MainActivity : ComponentActivity() {
                             onSetZoom = { z -> setZoom(z) },
                             onCameraReady = { pv ->
                                 previewView = pv
-                                enumerateCameras()
-                                startCamera()
+                                if (availableCameras.isEmpty()) {
+                                    enumerateCameras()
+                                    startCamera()
+                                }
                             },
                             onZeroReset = {
                                 state.zeroed = !state.zeroed
                                 if (state.zeroed) engine.setZero()
                                 else engine.reset()
                             },
-                            onCalibrate = {
-                                Toast.makeText(this@MainActivity, "标定功能: 请使用桌面版或导入标定文件", Toast.LENGTH_SHORT).show()
-                            },
+                            onCalibrate = { openCalibration() },
+                            calibUi = calibUiState.value,
+                            calibCameraLabel = currentCameraLabel(),
+                            calibHasExisting = CalibrationStore.load(
+                                this@MainActivity, currentCameraId(), currentZoomState.value
+                            ) != null,
+                            onCalibStart = { dist, size -> startCalibration(dist, size) },
+                            onCalibCancel = { cancelCalibration() },
+                            onCalibAccept = { acceptCalibration() },
+                            onCalibRetry = { retryCalibration() },
+                            onCalibClear = { clearCalibration() },
                             onReset = {
                                 engine.reset()
                                 state.zeroed = false
                             },
-                            onSetTargetSize = { tid, mm -> detector.setTargetSize(tid, mm) }
+                            onSetTargetSize = { tid, mm -> detector.setTargetSize(tid, mm) },
+                            resolutionLabels = resolutionLabels,
+                            currentResolutionIndex = state.resolutionIndex,
+                            onSetResolution = { idx -> setResolution(idx) }
                         )
                     } else {
                         // OpenCV 加载失败: 显示错误界面, 不再启动相机
@@ -190,7 +235,15 @@ class MainActivity : ComponentActivity() {
 
     // ──── 相机启动 ────
     private fun startCamera() {
+        if (cameraStarting) {
+            Log.d(TAG, "startCamera 排队: 上次未完成")
+            pendingCameraStart = true
+            return
+        }
+        cameraStarting = true
+        pendingCameraStart = false
         previewView?.let { startCameraWithPreview(it) }
+            ?: run { cameraStarting = false }
     }
 
     /** 枚举设备所有摄像头 (后摄/前摄/超广角/长焦) */
@@ -274,6 +327,15 @@ class MainActivity : ComponentActivity() {
         startCamera()
     }
 
+    /** 由 UI 调用: 切换分辨率 */
+    fun setResolution(index: Int) {
+        val idx = index.coerceIn(0, resolutionOptions.size - 1)
+        state.resolutionIndex = idx
+        Log.i(TAG, "setResolution -> $idx ${resolutionLabels[idx]}")
+        // 重启相机以应用新分辨率
+        startCamera()
+    }
+
     /**
      * 由 UI 调用: 设置变焦比。
      * 后摄是逻辑多摄 (physicalIds=[3,2,4,5]), 系统会根据变焦比自动切到
@@ -287,7 +349,154 @@ class MainActivity : ComponentActivity() {
         val r = ratio.coerceIn(minZ, maxZ)
         cam.cameraControl.setZoomRatio(r)
         currentZoomState.value = r
+        // 切换变焦档等于换了焦距, 重新套用该档的标定值 (没有则回落默认内参)
+        applyStoredCalibration()
         Log.i(TAG, "setZoom -> $r")
+    }
+
+    // ──────────── 距离标定流程 ────────────
+
+    /** 打开标定向导 */
+    private fun openCalibration() {
+        activeCalibrator = null
+        pendingCalib = null
+        calibUiState.value = CalibUiState(stage = CalibStage.INPUT)
+    }
+
+    /** 开始采样: 用户已填入实测距离与靶标直径 */
+    private fun startCalibration(distanceMm: Double, sizeMm: Double) {
+        val calibrator = DistanceCalibrator(
+            targetSizeMm = sizeMm,
+            knownDistanceMm = distanceMm
+        )
+        activeCalibrator = calibrator
+        calibUiState.value = CalibUiState(
+            stage = CalibStage.SAMPLING,
+            requiredSamples = calibrator.requiredSamples,
+            hint = "将靶标完整置于画面中"
+        )
+        Log.i(TAG, "calibration started D=$distanceMm W=$sizeMm")
+    }
+
+    /** 取消 / 关闭向导 */
+    private fun cancelCalibration() {
+        activeCalibrator = null
+        pendingCalib = null
+        calibUiState.value = null
+    }
+
+    /** 重新采样 (回到输入阶段) */
+    private fun retryCalibration() {
+        activeCalibrator = null
+        pendingCalib = null
+        calibUiState.value = CalibUiState(stage = CalibStage.INPUT)
+    }
+
+    /** 保存标定结果并立即生效 */
+    private fun acceptCalibration() {
+        val data = pendingCalib
+        if (data == null) {
+            cancelCalibration()
+            return
+        }
+        CalibrationStore.save(this, currentCameraId(), currentZoomState.value, data)
+        calibData = data
+        useCalibration = true
+        updateCalibrationMats()
+        state.calibrationData = calibData
+        state.warningMessage = null
+        activeCalibrator = null
+        pendingCalib = null
+        calibUiState.value = null
+        Toast.makeText(this, "标定已保存, 距离测量已启用实测焦距", Toast.LENGTH_SHORT).show()
+    }
+
+    /** 清除当前镜头/变焦档的标定 */
+    private fun clearCalibration() {
+        CalibrationStore.clear(this, currentCameraId(), currentZoomState.value)
+        calibData = CalibrationData()
+        useCalibration = false
+        updateCalibrationMats()
+        state.calibrationData = calibData
+        state.warningMessage = "相机未标定 (使用默认内参)"
+        calibUiState.value = null
+        Toast.makeText(this, "已清除该镜头的标定", Toast.LENGTH_SHORT).show()
+    }
+
+    /** 根据当前摄像头 + 变焦档载入已保存的标定值 */
+    private fun applyStoredCalibration() {
+        val stored = CalibrationStore.load(this, currentCameraId(), currentZoomState.value)
+        if (stored != null && stored.isValid) {
+            calibData = stored
+            useCalibration = true
+            state.warningMessage = null
+            Log.i(TAG, "applied stored calib for ${currentCameraId()}@${currentZoomState.value}")
+        } else {
+            calibData = CalibrationData()
+            useCalibration = false
+            state.warningMessage = "相机未标定 (使用默认内参)"
+        }
+        if (::cameraMatrix.isInitialized) updateCalibrationMats()
+        state.calibrationData = calibData
+    }
+
+    /**
+     * 由检测线程调用: 投喂一帧检测结果给标定器。
+     * 采样满后计算结果并切到 DONE 阶段等待用户确认。
+     */
+    private fun feedCalibration(
+        results: Map<Int, com.example.targettracker.detector.DetectionResult>,
+        width: Int,
+        height: Int
+    ) {
+        val calibrator = activeCalibrator ?: return
+        calibrator.feed(results, width, height)
+
+        if (calibrator.isComplete) {
+            val result = calibrator.finish()
+            activeCalibrator = null
+            if (result == null) {
+                runOnUiThread {
+                    calibUiState.value = CalibUiState(
+                        stage = CalibStage.INPUT,
+                        hint = "样本不足, 请重试"
+                    )
+                }
+                return
+            }
+            pendingCalib = result
+            // 与默认内参对比, 得出距离修正比例 (默认 fx = w*0.866*zoom)
+            val defFx = width / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) *
+                    currentZoomState.value.toDouble().coerceAtLeast(0.1)
+            val newFx = result.cameraMatrix[0]
+            val ratio = if (defFx > 0) newFx / defFx else 1.0
+            runOnUiThread {
+                calibUiState.value = CalibUiState(
+                    stage = CalibStage.DONE,
+                    progress = 1f,
+                    sampleCount = calibrator.requiredSamples,
+                    requiredSamples = calibrator.requiredSamples,
+                    resultFx = result.cameraMatrix[0],
+                    resultFy = result.cameraMatrix[4],
+                    resultErr = result.reprojectionError,
+                    correctionRatio = ratio
+                )
+            }
+        } else {
+            val n = calibrator.sampleCount
+            val p = calibrator.progress
+            val hint = calibrator.lastReject ?: "采样中, 保持稳定"
+            runOnUiThread {
+                val cur = calibUiState.value
+                if (cur != null && cur.stage == CalibStage.SAMPLING) {
+                    calibUiState.value = cur.copy(
+                        progress = p,
+                        sampleCount = n,
+                        hint = hint
+                    )
+                }
+            }
+        }
     }
     private fun startCameraWithPreview(pv: PreviewView) {
         if (!checkCameraPermission()) return
@@ -307,11 +516,13 @@ class MainActivity : ComponentActivity() {
                 it.setSurfaceProvider(pv.surfaceProvider)
             }
 
-            // ImageAnalysis: 强制 640x480, 避开 CameraX 在 Android 14+ 自动选 maxRes (2448x2448)
+            // ImageAnalysis: 使用用户选择的分辨率
+            val resIdx = state.resolutionIndex.coerceIn(0, resolutionOptions.size - 1)
+            val targetSize = resolutionOptions[resIdx]
             val resolutionSelector = ResolutionSelector.Builder()
                 .setResolutionStrategy(
                     ResolutionStrategy(
-                        android.util.Size(640, 480),
+                        targetSize,
                         ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                     )
                 )
@@ -358,10 +569,19 @@ class MainActivity : ComponentActivity() {
                     .filter { it in minZ..maxZ }
                 zoomRatiosState.value = if (presets.isEmpty()) listOf(1.0f) else presets
                 currentZoomState.value = zs?.zoomRatio ?: 1.0f
+                // 套用该摄像头/变焦档已保存的标定值
+                applyStoredCalibration()
                 Log.i(TAG, "bound cam front=$isFrontCamera zoom=$minZ~$maxZ presets=${zoomRatiosState.value}")
             } catch (e: Exception) {
                 Log.e(TAG, "Camera bind failed: ${e.message}")
                 state.warningMessage = "相机初始化失败"
+            } finally {
+                // ── 防并发: 标记本次 startCamera 完成，处理排队请求 ──
+                cameraStarting = false
+                if (pendingCameraStart) {
+                    Log.d(TAG, "执行排队的 camera start")
+                    startCamera()
+                }
             }
         }, ContextCompat.getMainExecutor(this))
     }
@@ -419,6 +639,11 @@ class MainActivity : ComponentActivity() {
                 if (useCalibration) cameraMatrix else null,
                 if (useCalibration) distCoeffs else null
             )
+
+            // 标定采样 (向导打开且处于采样阶段时才会消费)
+            if (activeCalibrator != null) {
+                feedCalibration(detResults, grayW, grayH)
+            }
 
             // 测量
             val dispResults = engine.measureAll(detResults, timestamp)
@@ -486,9 +711,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * 刷新内参 Mat。
+     *
+     * 该方法会被反复调用 (切摄像头/切变焦/保存标定), 而检测线程同时在读 cameraMatrix,
+     * 因此只在首次分配 Mat, 之后原地覆写数据 —— 避免 release 掉正被 native 使用的 Mat。
+     */
+    @Synchronized
     private fun updateCalibrationMats() {
-        cameraMatrix = Mat(3, 3, org.opencv.core.CvType.CV_64F)
-        distCoeffs = Mat(5, 1, org.opencv.core.CvType.CV_64F)
+        if (!::cameraMatrix.isInitialized) {
+            cameraMatrix = Mat(3, 3, org.opencv.core.CvType.CV_64F)
+        }
+        if (!::distCoeffs.isInitialized) {
+            distCoeffs = Mat(5, 1, org.opencv.core.CvType.CV_64F)
+        }
 
         if (useCalibration) {
             cameraMatrix.put(0, 0, *calibData.cameraMatrix)
@@ -499,6 +735,7 @@ class MainActivity : ComponentActivity() {
                 0.0, 1000.0, 360.0,
                 0.0, 0.0, 1.0
             )
+            distCoeffs.put(0, 0, 0.0, 0.0, 0.0, 0.0, 0.0)
         }
     }
 

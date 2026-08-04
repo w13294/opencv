@@ -37,26 +37,26 @@ class MarkerOverlayView @JvmOverloads constructor(
     private val ellipsePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 5f
-        color = Color.parseColor("#FF00E676") // 绿色
+        color = Color.parseColor("#FF00E5A0") // 青绿 (AccentTeal)
     }
     private val quadPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#FFFF5252") // 红色
+        color = Color.parseColor("#FFFF5C6C") // 红 (HudRed)
     }
     private val centerCrossPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
         strokeWidth = 3f
-        color = Color.parseColor("#FF40C4FF") // 青色
+        color = Color.parseColor("#FF21D4FD") // 青 (AccentCyan)
     }
     private val idPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.parseColor("#FFFFFFFF")
-        textSize = 38f
+        color = Color.parseColor("#FFEAF2FF") // HudWhite
+        textSize = 34f
         isFakeBoldText = true
-        setShadowLayer(4f, 1f, 1f, Color.BLACK)
+        setShadowLayer(6f, 0f, 2f, Color.BLACK)
     }
     private val labelBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.FILL
-        color = Color.parseColor("#88000000")
+        color = Color.parseColor("#CC121826") // Surface0 半透明
     }
     private val refRect = RectF()
 

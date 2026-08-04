@@ -29,6 +29,9 @@ class TargetTrackerState {
     // 标定
     var calibrationData: CalibrationData by mutableStateOf(CalibrationData())
 
+    // 分辨率选择
+    var resolutionIndex: Int by mutableStateOf(0)  // 0=640x480, 1=1280x720, 2=1920x1080
+
     // 告警
     var warningMessage: String? by mutableStateOf(null)
 
