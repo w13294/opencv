@@ -22,9 +22,8 @@ import androidx.camera.camera2.interop.Camera2CameraInfo
 import android.hardware.camera2.CameraCharacteristics
 import com.example.targettracker.camera.CameraAnalyzer
 import com.example.targettracker.config.CalibrationData
-import com.example.targettracker.config.CalibrationStore
+import com.example.targettracker.config.CheckerboardCalibrator
 import com.example.targettracker.config.Config
-import com.example.targettracker.config.DistanceCalibrator
 import com.example.targettracker.ui.CalibStage
 import com.example.targettracker.ui.CalibUiState
 import com.example.targettracker.detector.TargetDetector
@@ -109,6 +108,8 @@ class MainActivity : ComponentActivity() {
         val id: String,            // Camera2 cameraId (如 "0", "1")
         val lensFacing: Int,       // CameraSelector.LENS_FACING_BACK / FRONT
         val focalLengths: FloatArray, // 物理焦距 (mm), 用于区分广角/长焦
+        val sensorWidthMm: Float,  // 传感器物理宽度 (mm)
+        val sensorHeightMm: Float, // 传感器物理高度 (mm)
         val label: String,
         val cameraInfo: CameraInfo
     )
@@ -128,11 +129,11 @@ class MainActivity : ComponentActivity() {
     // 当前是否前摄 (前摄画面水平镜像, 需翻转后再检测)
     @Volatile private var isFrontCamera = false
 
-    // ──── 距离标定 ────
+    // ──── 棋盘格标定 ────
     /** 标定向导 UI 状态 (null = 未打开) */
     val calibUiState = mutableStateOf<CalibUiState?>(null)
     /** 采样中的标定器, 由检测线程投喂 */
-    @Volatile private var activeCalibrator: DistanceCalibrator? = null
+    @Volatile private var activeCalibrator: CheckerboardCalibrator? = null
     /** 采样完成待用户确认的结果 */
     private var pendingCalib: CalibrationData? = null
 
@@ -193,11 +194,8 @@ class MainActivity : ComponentActivity() {
                             },
                             onCalibrate = { openCalibration() },
                             calibUi = calibUiState.value,
-                            calibCameraLabel = currentCameraLabel(),
-                            calibHasExisting = CalibrationStore.load(
-                                this@MainActivity, currentCameraId(), currentZoomState.value
-                            ) != null,
-                            onCalibStart = { dist, size -> startCalibration(dist, size) },
+                            calibHasExisting = CalibrationData.load(preferences) != null,
+                            onCalibStart = { cols, rows, sqSize -> startCalibration(cols, rows, sqSize) },
                             onCalibCancel = { cancelCalibration() },
                             onCalibAccept = { acceptCalibration() },
                             onCalibRetry = { retryCalibration() },
@@ -291,6 +289,13 @@ class MainActivity : ComponentActivity() {
                     val ch = c2.getCameraCharacteristic(focalKey)
                     ch ?: floatArrayOf(0f)
                 } catch (_: Exception) { floatArrayOf(0f) }
+                // 传感器物理尺寸 (mm)，用于计算真实 fx = focalMm * imageW / sensorWmm
+                val sensorKey = android.hardware.camera2.CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE
+                val sensorSize = try {
+                    c2.getCameraCharacteristic(sensorKey)
+                } catch (_: Exception) { null }
+                val sensorWmm = sensorSize?.width ?: 0f
+                val sensorHmm = sensorSize?.height ?: 0f
                 val facingStr = if (lensFacing == CameraSelector.LENS_FACING_FRONT) "前摄" else "后摄"
                 val minFocal = focals.minOrNull() ?: 0f
                 // 逻辑多摄: 读取隐藏的物理镜头数量 (本机后摄 physicalIds=[3,2,4,5])
@@ -308,7 +313,7 @@ class MainActivity : ComponentActivity() {
                 val zoomStr = if (zr != null) " ${zr.lower}~${zr.upper}x" else ""
                 val physStr = if (physCount > 1) "·${physCount}镜头" else ""
                 val label = "摄像头$id $facingStr$physStr (${"%.1f".format(minFocal)}mm)$zoomStr"
-                availableCameras.add(CameraOption(id, lensFacing, focals, label, info))
+                availableCameras.add(CameraOption(id, lensFacing, focals, sensorWmm, sensorHmm, label, info))
             }
             // 默认选中第一个后摄, 没有则第一个
             if (availableCameras.isNotEmpty()) {
@@ -377,7 +382,7 @@ class MainActivity : ComponentActivity() {
         Log.i(TAG, "setZoom -> $r")
     }
 
-    // ──────────── 距离标定流程 ────────────
+    // ──────────── 棋盘格标定流程 ────────────
 
     /** 打开标定向导 */
     private fun openCalibration() {
@@ -386,19 +391,22 @@ class MainActivity : ComponentActivity() {
         calibUiState.value = CalibUiState(stage = CalibStage.INPUT)
     }
 
-    /** 开始采样: 用户已填入实测距离与靶标直径 */
-    private fun startCalibration(distanceMm: Double, sizeMm: Double) {
-        val calibrator = DistanceCalibrator(
-            targetSizeMm = sizeMm,
-            knownDistanceMm = distanceMm
+    /** 开始采样: 用户已填入棋盘格参数（内角列/行数、每格边长 mm） */
+    private fun startCalibration(gridCols: Int, gridRows: Int, squareSizeMm: Double) {
+        val calibrator = CheckerboardCalibrator(
+            patternSize = org.opencv.core.Size(gridCols.toDouble(), gridRows.toDouble()),
+            squareSizeMm = squareSizeMm,
+            requiredSamples = 25
         )
         activeCalibrator = calibrator
         calibUiState.value = CalibUiState(
             stage = CalibStage.SAMPLING,
-            requiredSamples = calibrator.requiredSamples,
-            hint = "将靶标完整置于画面中"
+            gridCols = gridCols,
+            gridRows = gridRows,
+            squareSizeMm = squareSizeMm.toInt().toString(),
+            requiredSamples = calibrator.requiredSamples
         )
-        Log.i(TAG, "calibration started D=$distanceMm W=$sizeMm")
+        Log.i(TAG, "checkerboard calib started: ${gridCols}x${gridRows}, square=${squareSizeMm}mm")
     }
 
     /** 取消 / 关闭向导 */
@@ -418,11 +426,12 @@ class MainActivity : ComponentActivity() {
     /** 保存标定结果并立即生效 */
     private fun acceptCalibration() {
         val data = pendingCalib
-        if (data == null) {
+        if (data == null || !data.isValid) {
             cancelCalibration()
             return
         }
-        CalibrationStore.save(this, currentCameraId(), currentZoomState.value, data)
+        // 棋盘格标定得到完整内参 + 畸变系数，不依赖 zoom level
+        CalibrationData.save(preferences, data)
         calibData = data
         useCalibration = true
         updateCalibrationMats()
@@ -431,91 +440,89 @@ class MainActivity : ComponentActivity() {
         activeCalibrator = null
         pendingCalib = null
         calibUiState.value = null
-        Toast.makeText(this, "标定已保存, 距离测量已启用实测焦距", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "棋盘格标定已保存", Toast.LENGTH_SHORT).show()
     }
 
-    /** 清除当前镜头/变焦档的标定 */
+    /** 清除当前标定 */
     private fun clearCalibration() {
-        CalibrationStore.clear(this, currentCameraId(), currentZoomState.value)
+        preferences.edit().remove("calibration_data").apply()
         calibData = CalibrationData()
         useCalibration = false
         updateCalibrationMats()
         state.calibrationData = calibData
-        state.warningMessage = "相机未标定 (使用默认内参)"
+        state.warningMessage = "相机未标定 (使用 Camera2 内参)"
         calibUiState.value = null
-        Toast.makeText(this, "已清除该镜头的标定", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "已清除标定", Toast.LENGTH_SHORT).show()
     }
 
-    /** 根据当前摄像头 + 变焦档载入已保存的标定值 */
+    /** 载入已保存的标定值 */
     private fun applyStoredCalibration() {
-        val stored = CalibrationStore.load(this, currentCameraId(), currentZoomState.value)
+        val stored = CalibrationData.load(preferences)
         if (stored != null && stored.isValid) {
             calibData = stored
             useCalibration = true
             state.warningMessage = null
-            Log.i(TAG, "applied stored calib for ${currentCameraId()}@${currentZoomState.value}")
+            Log.i(TAG, "applied stored checkerboard calib: fx=${stored.fx}")
         } else {
             calibData = CalibrationData()
             useCalibration = false
-            state.warningMessage = "相机未标定 (使用默认内参)"
+            state.warningMessage = "相机未标定 (使用 Camera2 内参)"
         }
         if (::cameraMatrix.isInitialized) updateCalibrationMats()
         state.calibrationData = calibData
     }
 
+    /** SharedPreferences（供 CalibrationData 存储使用） */
+    private val preferences by lazy {
+        getSharedPreferences("checkerboard_calib", android.content.Context.MODE_PRIVATE)
+    }
+
     /**
-     * 由检测线程调用: 投喂一帧检测结果给标定器。
-     * 采样满后计算结果并切到 DONE 阶段等待用户确认。
+     * 由检测线程调用: 投喂一帧给棋盘格标定器。
+     * 使用灰度图进行角点检测，与靶标检测完全独立。
      */
     private fun feedCalibration(
-        results: Map<Int, com.example.targettracker.detector.DetectionResult>,
+        gray: Mat,
         width: Int,
         height: Int
     ) {
         val calibrator = activeCalibrator ?: return
-        calibrator.feed(results, width, height)
+        val ok = calibrator.feed(gray, width, height)
 
         if (calibrator.isComplete) {
-            val result = calibrator.finish()
+            val result = calibrator.finish(width, height)
             activeCalibrator = null
-            if (result == null) {
+            if (result == null || !result.isValid) {
                 runOnUiThread {
                     calibUiState.value = CalibUiState(
                         stage = CalibStage.INPUT,
-                        hint = "样本不足, 请重试"
+                        rejectReason = "标定失败: 样本不足或质量不够"
                     )
                 }
                 return
             }
             pendingCalib = result
-            // 与默认内参对比, 得出距离修正比例 (默认 fx = w*0.866*zoom)
-            val defFx = width / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) *
-                    currentZoomState.value.toDouble().coerceAtLeast(0.1)
-            val newFx = result.cameraMatrix[0]
-            val ratio = if (defFx > 0) newFx / defFx else 1.0
             runOnUiThread {
                 calibUiState.value = CalibUiState(
                     stage = CalibStage.DONE,
-                    progress = 1f,
                     sampleCount = calibrator.requiredSamples,
                     requiredSamples = calibrator.requiredSamples,
-                    resultFx = result.cameraMatrix[0],
-                    resultFy = result.cameraMatrix[4],
-                    resultErr = result.reprojectionError,
-                    correctionRatio = ratio
+                    reprojectionError = result.reprojectionError,
+                    fx = result.fx,
+                    fy = result.fy,
+                    cx = result.cx,
+                    cy = result.cy
                 )
             }
         } else {
-            val n = calibrator.sampleCount
-            val p = calibrator.progress
-            val hint = calibrator.lastReject ?: "采样中, 保持稳定"
+            val n = calibrator.sampleCountValue
+            val reason = calibrator.lastRejectReason()
             runOnUiThread {
                 val cur = calibUiState.value
                 if (cur != null && cur.stage == CalibStage.SAMPLING) {
                     calibUiState.value = cur.copy(
-                        progress = p,
                         sampleCount = n,
-                        hint = hint
+                        rejectReason = if (!ok) reason else null
                     )
                 }
             }
@@ -570,11 +577,29 @@ class MainActivity : ComponentActivity() {
                         cm[0] *= scaleX; cm[2] *= scaleX
                         cm[4] *= scaleY; cm[5] *= scaleY
                         cameraMatrix.put(0, 0, *cm)
+                        // 畸变系数不需要缩放
+                        distCoeffs.put(0, 0, *calibData.distCoeffs)
                     } else {
+                        // 优先使用 Camera2 API 读取的物理焦距和传感器尺寸（更准确）
+                        val opt = availableCameras.getOrNull(currentCameraIndex)
+                        val focalMm = opt?.focalLengths?.minOrNull()?.toDouble() ?: 0.0
+                        val sensorW = opt?.sensorWidthMm?.toDouble() ?: 0.0
+                        val sensorH = opt?.sensorHeightMm?.toDouble() ?: 0.0
                         val zoom = currentZoomState.value.toDouble().coerceAtLeast(0.1)
-                        val fx = w / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
-                        val fy = h / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+
+                        val fx: Double
+                        val fy: Double
+                        if (focalMm > 0.0 && sensorW > 0.0 && sensorH > 0.0) {
+                            // 基于物理参数的真实焦距（像素）
+                            fx = (focalMm * w / sensorW) * zoom
+                            fy = (focalMm * h / sensorH) * zoom
+                        } else {
+                            // 兜底: 60° FOV 假设
+                            fx = w / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+                            fy = h / (2.0 * kotlin.math.tan(Math.toRadians(30.0))) * zoom
+                        }
                         cameraMatrix.put(0, 0, fx, 0.0, w / 2.0, 0.0, fy, h / 2.0, 0.0, 0.0, 1.0)
+                        distCoeffs.put(0, 0, 0.0, 0.0, 0.0, 0.0, 0.0)
                     }
 
                     // 2. YUV→Gray (轻量: 内存拷贝, ~2-3ms)
@@ -682,9 +707,9 @@ class MainActivity : ComponentActivity() {
                         job.cameraMatrix, job.distCoeffs
                     )
 
-                    // 标定采样
+                    // 棋盘格标定采样 (使用灰度图, 独立于靶标检测)
                     if (activeCalibrator != null) {
-                        feedCalibration(detResults, job.grayW, job.grayH)
+                        feedCalibration(job.gray.clone(), job.grayW, job.grayH)
                     }
 
                     // 测量

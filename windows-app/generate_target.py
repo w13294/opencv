@@ -370,7 +370,10 @@ def generate_multi_quadrant(sizes_mm: list, dpi: int = 300, paper_width_mm: floa
             cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 270, 360, (0, 0, 0), -1)
 
             # 在靶标下方标注实际尺寸
-            label = f"{int(s)}mm"
+            if scale < 0.999:
+                label = f"{s*scale:.1f}mm (SCALED from {int(s)}mm)"
+            else:
+                label = f"{int(s)}mm"
             label_font_scale = max(0.4, min(1.2, actual_size_px / 800.0))
             (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, label_font_scale, 2)
             cv2.putText(board, label,
@@ -386,12 +389,21 @@ def generate_multi_quadrant(sizes_mm: list, dpi: int = 300, paper_width_mm: floa
     info_bar_y = paper_h_px - info_h
     cv2.line(board, (margin_px, info_bar_y), (paper_w_px - margin_px, info_bar_y), (0, 0, 0), 2)
 
-    sizes_str = ", ".join([f"{int(s)}mm" for s in placed_targets])
-    cv2.putText(board, f"Multi-Quadrant Target Sheet ({paper_width_mm}x{paper_height_mm}mm)",
-                (margin_px, info_bar_y + int(0.25 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
-                0.6, (0, 0, 0), 2, cv2.LINE_AA)
-    cv2.putText(board, f"Sizes: {sizes_str}",
-                (margin_px, info_bar_y + int(0.45 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (0, 0, 0), 1, cv2.LINE_AA)
+    if scale < 0.999:
+        sizes_str = ", ".join([f"{s*scale:.1f}mm" for s in placed_targets])
+        cv2.putText(board, f"Multi-Quadrant Target Sheet ({paper_width_mm}x{paper_height_mm}mm) - SCALED TO FIT",
+                    (margin_px, info_bar_y + int(0.25 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (0, 0, 255), 2, cv2.LINE_AA)
+        cv2.putText(board, f"WARNING: Targets shrunk to {scale*100:.1f}%. True sizes: {sizes_str}",
+                    (margin_px, info_bar_y + int(0.45 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 255), 1, cv2.LINE_AA)
+    else:
+        sizes_str = ", ".join([f"{int(s)}mm" for s in placed_targets])
+        cv2.putText(board, f"Multi-Quadrant Target Sheet ({paper_width_mm}x{paper_height_mm}mm)",
+                    (margin_px, info_bar_y + int(0.25 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(board, f"Sizes: {sizes_str}",
+                    (margin_px, info_bar_y + int(0.45 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 1, cv2.LINE_AA)
 
     return board

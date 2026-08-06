@@ -414,8 +414,31 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
     ): Map<Int, DetectionResult> {
         // candidates 必定非空 (调用前已检查)
 
-        val sorted = candidates.sortedByDescending { it.area }
+        val initialSorted = candidates.sortedByDescending { it.area }
 
+        // ──── 剔除包围真实靶标的幽灵外部轮廓 ────
+        val validCandidates = mutableListOf<Candidate>()
+        for (i in initialSorted.indices) {
+            val cand1 = initialSorted[i]
+            var isGhost = false
+            for (j in initialSorted.indices) {
+                if (i == j) continue
+                val cand2 = initialSorted[j]
+                if (cand1.area > cand2.area * 1.1) {
+                    val dx = cand1.ellipse.center.x - cand2.ellipse.center.x
+                    val dy = cand1.ellipse.center.y - cand2.ellipse.center.y
+                    val dist = Math.sqrt(dx * dx + dy * dy)
+                    if (dist < Math.max(cand1.ellipse.size.width, cand1.ellipse.size.height) * 0.3) {
+                        isGhost = true
+                        break
+                    }
+                }
+            }
+            if (!isGhost) {
+                validCandidates.add(cand1)
+            }
+        }
+        val sorted = validCandidates
         // ──── 全局最近邻匹配 ────
         // 旧实现按面积顺序贪心: 先轮到的候选可以抢走"几何上更属于别人"的 ID,
         // 导致相邻两帧 T0/T1 互换 (表现为"重新识别错误").
@@ -536,6 +559,24 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         return results
     }
 
+    /**
+     * 计算像素直径（混合算法，对齐 Windows 端 detector.py）
+     *
+     * 利用四象限靶标的对角象限质心距离 + 椭圆轴长加权，
+     * 比单纯使用椭圆半轴和 (halfW+halfH) 更鲁棒，不易受阈值膨胀影响。
+     *
+     * Windows 经验系数: centroid_dist / 0.58 ≈ full pixel diameter
+     * 混合权重: 80% 象限距离, 20% 椭圆轴
+     */
+    private fun calcPixelDiam(halfW: Double, halfH: Double, quadCenters: Array<Point>): Double {
+        if (quadCenters.size < 2) return halfW + halfH
+        val dx = quadCenters[0].x - quadCenters[1].x
+        val dy = quadCenters[0].y - quadCenters[1].y
+        val centroidDist = Math.sqrt(dx * dx + dy * dy)
+        if (centroidDist < 5.0) return halfW + halfH
+        return 0.8 * (centroidDist / 0.58) + 0.2 * (halfW + halfH)
+    }
+
     private fun pinholeFallback(
         tid: Int, cx: Double, cy: Double,
         halfW: Double, halfH: Double,
@@ -550,7 +591,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         val cy0 = if (cameraMatrix != null && !cameraMatrix.empty())
             cameraMatrix.get(1, 2)[0] else 360.0
 
-        val pixelDiam = (halfW + halfH)
+        val pixelDiam = calcPixelDiam(halfW, halfH, cand.quadCenters)
         val z = if (pixelDiam > 1.0) ((fx + fy) / 2.0 * sizeMm) / pixelDiam else sizeMm * 10.0
         val x = (cx - cx0) * z / fx
         val y = (cy - cy0) * z / fy
