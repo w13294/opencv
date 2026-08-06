@@ -112,9 +112,12 @@ class MarkerOverlayView @JvmOverloads constructor(
         fun mapX(x: Double): Float = (offsetX + x * scale).toFloat()
         fun mapY(y: Double): Float = (offsetY + y * scale).toFloat()
 
+        // 保持和 HUD 逻辑一致，计算当前真正活跃的靶标 ID
+        val activeId = s.selectedTargetId?.takeIf { it in results } ?: results.keys.sorted().firstOrNull()
+
         for ((tid, det) in results) {
             val e = det.ellipse ?: continue
-            val isSelected = (s.selectedTargetId == null && results.size <= 1) || tid == s.selectedTargetId
+            val isSelected = (tid == activeId)
             val ePaint = if (isSelected) ellipsePaint else dimEllipsePaint
             val qPaint = if (isSelected) quadPaint else dimQuadPaint
             val xPaint = if (isSelected) centerCrossPaint else dimCenterPaint
