@@ -263,76 +263,135 @@ if __name__ == "__main__":
 
 def generate_multi_quadrant(sizes_mm: list, dpi: int = 300, paper_width_mm: float = 210.0, paper_height_mm: float = 297.0):
     """
-    在一张指定尺寸的画布上生成多个四象限靶标 (流式布局)
+    在一张指定尺寸的画布上生成多个四象限靶标 (网格打包布局)
+
+    排版规则:
+      1. 同一行内靶标按从小到大排列 (小靶标填缝)
+      2. 同一行总宽 ≤ 纸张宽度 (含边距)
+      3. 同一行总高 ≤ 纸张高度 (含边距)
+      4. 任何靶标放不下时, 整体缩放至最大可放入尺寸, 保证全部放置
     """
     import cv2
     import numpy as np
-    
+
     # 纸张尺寸转换为像素
     paper_w_px = int(paper_width_mm / 25.4 * dpi)
     paper_h_px = int(paper_height_mm / 25.4 * dpi)
-    
+
     # 全白画布
     board = np.ones((paper_h_px, paper_w_px, 3), dtype=np.uint8) * 255
-    
+
     margin_px = int(0.5 * dpi)
-    current_x = margin_px
-    current_y = margin_px
-    row_height = 0
-    
+    gap_px = int(0.2 * dpi)
+
     # 信息栏高度
     info_h = int(0.6 * dpi)
+    draw_area_w = paper_w_px - 2 * margin_px
     draw_area_h = paper_h_px - info_h - margin_px
 
-    # 从大到小排序，优化排版
+    # ── 网格打包: 同行靶标按从小到大, 充分利用横向空间 ──
+    # 按大小从大到小排序, 然后贪心填行
     sorted_sizes = sorted(sizes_mm, reverse=True)
+
+    # 计算每个靶标的像素尺寸 (含间隙)
+    sizes_px = []
+    for s in sorted_sizes:
+        size_px = int(s / 25.4 * dpi)
+        box_size = size_px + gap_px
+        sizes_px.append((s, size_px, box_size))
+
+    # ── 第一阶段: 正常排版, 试图让所有靶标按原始尺寸放置 ──
+    rows = []  # 每行: list of (size_mm, size_px, box_size)
+    current_row = []
+    current_row_w = 0
+    current_row_h = 0
+    pending = list(sizes_px)
+
+    while pending:
+        item = pending[0]
+        s, size_px, box_size = item
+        # 试探: 加入当前行会怎样
+        new_w = current_row_w + box_size if current_row else box_size
+        new_h = max(current_row_h, box_size)
+
+        if not current_row or new_w <= draw_area_w:
+            # 可放入当前行
+            current_row.append(item)
+            current_row_w = new_w
+            current_row_h = new_h
+            pending.pop(0)
+        else:
+            # 换行
+            rows.append(current_row)
+            current_row = []
+            current_row_w = 0
+            current_row_h = 0
+            # 不消费 pending, 下一轮循环再处理
+
+    if current_row:
+        rows.append(current_row)
+
+    # ── 第二阶段: 检查总高度, 必要时整体等比缩放 ──
+    total_h = sum(max(b for _, _, b in row) for row in rows) + gap_px * (len(rows) - 1 if len(rows) > 1 else 0)
+
+    scale = 1.0
+    if total_h > draw_area_h:
+        # 计算需要缩放的比例, 让总高度刚好等于 draw_area_h
+        avail_h = draw_area_h - gap_px * (len(rows) - 1 if len(rows) > 1 else 0)
+        scale = avail_h / total_h
+        # 也检查宽度
+        for row in rows:
+            row_w = sum(b for _, _, b in row) + gap_px * (len(row) - 1 if len(row) > 1 else 0)
+            if row_w > draw_area_w:
+                scale = min(scale, draw_area_w / row_w)
+
+    # ── 第三阶段: 按计算好的布局绘制 ──
     placed_targets = []
-    
-    for size_mm in sorted_sizes:
-        size_px = int(size_mm / 25.4 * dpi)
-        # 靶标占用的边长加上一点间隙 (0.2英寸)
-        box_size = size_px + int(0.2 * dpi)
-        
-        # 换行检测
-        if current_x + box_size > paper_w_px - margin_px:
-            current_x = margin_px
-            current_y += row_height
-            row_height = 0
-            
-        # 超出页面高度检测
-        if current_y + box_size > draw_area_h:
-            print(f"警告: 画布空间不足，靶标 {size_mm}mm 无法放入。")
-            continue
-            
-        # 绘制靶标
-        center_x = current_x + box_size // 2
-        center_y = current_y + box_size // 2
-        
-        ring_radius = size_px // 2
-        inner_radius = int(ring_radius * 0.8)
-        
-        cv2.circle(board, (center_x, center_y), ring_radius, (0, 0, 0), -1)
-        cv2.circle(board, (center_x, center_y), inner_radius, (255, 255, 255), -1)
-        
-        cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 90, 180, (0, 0, 0), -1)
-        cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 270, 360, (0, 0, 0), -1)
-        
-        # 记录已放置靶标
-        placed_targets.append(size_mm)
-        
-        current_x += box_size
-        row_height = max(row_height, box_size)
-        
-    # 在底部绘制信息栏
+    current_y = margin_px
+    for row in rows:
+        # 同行内靶标从左到右排列
+        row_w = sum(int(b * scale) for _, _, b in row) + gap_px * (len(row) - 1 if len(row) > 1 else 0)
+        current_x = margin_px + (draw_area_w - row_w) // 2  # 水平居中
+        row_h = int(max(b for _, _, b in row) * scale)
+
+        for s, size_px, box_size in row:
+            actual_size_px = int(size_px * scale)
+            actual_box_size = int(box_size * scale)
+
+            center_x = current_x + actual_box_size // 2
+            center_y = current_y + row_h // 2
+
+            ring_radius = actual_size_px // 2
+            inner_radius = int(ring_radius * 0.8)
+
+            cv2.circle(board, (center_x, center_y), ring_radius, (0, 0, 0), -1)
+            cv2.circle(board, (center_x, center_y), inner_radius, (255, 255, 255), -1)
+            cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 90, 180, (0, 0, 0), -1)
+            cv2.ellipse(board, (center_x, center_y), (inner_radius, inner_radius), 0, 270, 360, (0, 0, 0), -1)
+
+            # 在靶标下方标注实际尺寸
+            label = f"{int(s)}mm"
+            label_font_scale = max(0.4, min(1.2, actual_size_px / 800.0))
+            (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, label_font_scale, 2)
+            cv2.putText(board, label,
+                        (center_x - tw // 2, center_y + ring_radius + th + 4),
+                        cv2.FONT_HERSHEY_SIMPLEX, label_font_scale, (0, 0, 0), 2, cv2.LINE_AA)
+
+            placed_targets.append(s)
+            current_x += actual_box_size + gap_px
+
+        current_y += row_h + gap_px
+
+    # ── 第四阶段: 底部信息栏 ──
     info_bar_y = paper_h_px - info_h
-    cv2.line(board, (margin_px, info_bar_y), (paper_w_px - margin_px, info_bar_y), (0,0,0), 2)
-    
-    sizes_str = ", ".join([f"{s}mm" for s in placed_targets])
+    cv2.line(board, (margin_px, info_bar_y), (paper_w_px - margin_px, info_bar_y), (0, 0, 0), 2)
+
+    sizes_str = ", ".join([f"{int(s)}mm" for s in placed_targets])
     cv2.putText(board, f"Multi-Quadrant Target Sheet ({paper_width_mm}x{paper_height_mm}mm)",
-                (margin_px, info_bar_y + int(0.2*dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                (margin_px, info_bar_y + int(0.25 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.6, (0, 0, 0), 2, cv2.LINE_AA)
     cv2.putText(board, f"Sizes: {sizes_str}",
-                (margin_px, info_bar_y + int(0.4*dpi)), cv2.FONT_HERSHEY_SIMPLEX,
+                (margin_px, info_bar_y + int(0.45 * dpi)), cv2.FONT_HERSHEY_SIMPLEX,
                 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-                
+
     return board

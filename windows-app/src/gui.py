@@ -859,7 +859,8 @@ class TargetGeneratorDialog(QDialog):
         grp_preview_layout = QVBoxLayout(grp_preview)
         self.preview_label = QLabel("点击 [生成预览] 查看靶标图案")
         self.preview_label.setAlignment(Qt.AlignCenter)
-        self.preview_label.setMinimumHeight(300)
+        self.preview_label.setMinimumSize(500, 450)
+        self.preview_label.setScaledContents(True)
         self.preview_label.setStyleSheet(
             "color: #666; background: #12122a; border: 1px solid #2a2a4a; border-radius: 4px;")
         grp_preview_layout.addWidget(self.preview_label)
@@ -922,29 +923,41 @@ class TargetGeneratorDialog(QDialog):
             return
         img = self._generated_image.copy()
 
-        # 添加比例尺
+        # 添加比例尺 (放到右上角, 不被底部信息栏遮挡)
         dpi = self.spin_dpi.value()
         scale_bar_mm = 30
         scale_bar_px = int(scale_bar_mm / 25.4 * dpi)
         h, w = img.shape[:2]
-        bar_y = h - 15
+        # 放到右上角, 距离顶部 30 像素
+        bar_y = max(30, h - 30)
         bar_x = max(10, w - scale_bar_px - 30)
-        cv2.line(img, (bar_x, bar_y), (bar_x + scale_bar_px, bar_y), (255, 0, 0), 2)
-        cv2.putText(img, f"{scale_bar_mm}mm", (bar_x, bar_y - 6),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.4, (255, 0, 0), 1)
+        cv2.line(img, (bar_x, bar_y), (bar_x + scale_bar_px, bar_y), (255, 0, 0), 3)
+        cv2.putText(img, f"{scale_bar_mm}mm", (bar_x, bar_y - 8),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-        # 缩放预览
+        # 缩放预览 (限制在 500x600 之内, 保持宽高比)
         max_preview_w = 500
-        scale = min(max_preview_w / w, 1.0)
+        max_preview_h = 600
+        scale = min(max_preview_w / w, max_preview_h / h, 1.0)
         if scale < 1.0:
             img = cv2.resize(img, (int(w * scale), int(h * scale)),
                              interpolation=cv2.INTER_AREA)
 
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # 必须 copy() 否则 QImage 只持有 numpy 缓冲区的指针, 函数返回后缓冲区失效
         qimg = QImage(img_rgb.data, img_rgb.shape[1], img_rgb.shape[0],
-                       img_rgb.shape[1] * 3, QImage.Format_RGB888)
-        self.preview_label.setPixmap(QPixmap.fromImage(qimg))
-        self.preview_label.setMinimumHeight(min(200, img.shape[0]))
+                       img_rgb.shape[1] * 3, QImage.Format_RGB888).copy()
+        pix = QPixmap.fromImage(qimg)
+        self.preview_label.setPixmap(pix)
+        # 启用缩放内容 (否则 pixmap 按原始尺寸显示, label 太小只看到左上角)
+        self.preview_label.setScaledContents(True)
+        # 按比例设置 label 尺寸, 保证预览区域足够大, 不会只显示顶部一小块
+        target_w = 500
+        target_h = int(target_w * img.shape[0] / img.shape[1])
+        target_h = max(target_h, 200)
+        target_h = min(target_h, max_preview_h)
+        self.preview_label.setMinimumSize(target_w, target_h)
+        self.preview_label.setMaximumSize(target_w, target_h)
 
     def _on_save(self):
         if self._generated_image is None:
