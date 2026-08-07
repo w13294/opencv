@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger
  *   4. 收集足够样本后调用 finish() 完成标定
  */
 class CheckerboardCalibrator(
-    private val patternSize: Size = Size(9.0, 6.0),   // 内角点数量（列 x 行）
+    private val patternSize: Size = Size(8.0, 5.0),   // 内角点数量（列 x 行）
     private val squareSizeMm: Double = 25.0,           // 每格边长（毫米）
     val requiredSamples: Int = 20                      // 最少需要的棋盤帧数
 ) {
@@ -68,16 +68,16 @@ class CheckerboardCalibrator(
      */
     fun feed(gray: Mat, width: Int, height: Int): Boolean {
         val corners = MatOfPoint2f()
-        val found = Calib3d.findChessboardCorners(
-            gray, patternSize, corners,
-            Calib3d.CALIB_CB_ADAPTIVE_THRESH or Calib3d.CALIB_CB_NORMALIZE_IMAGE or Calib3d.CALIB_CB_FAST_CHECK
-        )
+        try {
+            val found = Calib3d.findChessboardCorners(
+                gray, patternSize, corners,
+                Calib3d.CALIB_CB_ADAPTIVE_THRESH or Calib3d.CALIB_CB_NORMALIZE_IMAGE or Calib3d.CALIB_CB_FAST_CHECK
+            )
 
-        if (!found || corners.toArray().size != patternSize.area().toInt()) {
-            corners.release()
-            rejectReason = "未检测到棋盘格角点，请确保整张棋盘格清晰可见"
-            return false
-        }
+            if (!found || corners.toArray().size != patternSize.area().toInt()) {
+                rejectReason = "未检测到 ${patternSize.width.toInt()}×${patternSize.height.toInt()} 内角点，请检查设置并确保整张棋盘格清晰可见"
+                return false
+            }
 
         // 亚像素精细化
         val criteria = TermCriteria(
@@ -95,7 +95,8 @@ class CheckerboardCalibrator(
         val spanX = maxX - minX
         val spanY = maxY - minY
 
-        if (spanX < width * 0.3 || spanY < height * 0.3) {
+        if (spanX < width * 0.2 || spanY < height * 0.2) {
+            corners.release()
             rejectReason = "棋盘格在画面中占比过小，请靠近或放大"
             return false
         }
@@ -108,27 +109,42 @@ class CheckerboardCalibrator(
                 val dy = a.y - b.y
                 kotlin.math.sqrt(dx * dx + dy * dy)
             }.average()
-            if (avgDist < 15.0) {
+            if (avgDist < 10.0) {
+                corners.release()
                 rejectReason = "画面与上一帧几乎相同，请改变角度或距离"
                 return false
             }
         }
 
         synchronized(this) {
-            imagePointsList.add(corners.clone() as MatOfPoint2f)
-            objectPointsList.add(objectPointsTemplate.clone() as MatOfPoint3f)
+            imagePointsList.add(MatOfPoint2f(corners.clone()))
+            objectPointsList.add(MatOfPoint3f(objectPointsTemplate.clone()))
         }
         rejectReason = null
         sampleCount.incrementAndGet()
         _progress.set(sampleCount.get())
         return true
+    } finally {
+        // 无论成功/失败都释放本地 corners，且保持同一引用避免 native 写入错乱
+        corners.release()
+    }
     }
 
-    /** 完成标定，返回 CalibrationData */
+    /** 完成标定，返回 CalibrationData。
+     *  注意：calibrateCamera 较重，调用方应在后台线程执行，避免阻塞相机。 */
     fun finish(width: Int, height: Int): CalibrationData? {
-        if (sampleCount.get() < 5) {
-            Log.e("CheckerboardCal", "样本不足: ${sampleCount.get()}")
-            return null
+        // 快照列表引用并清空，避免与并发的 feed() 读写同一批 Mat 导致崩溃
+        val objList: List<Mat>
+        val imgList: List<Mat>
+        synchronized(this) {
+            if (sampleCount.get() < 5) {
+                Log.e("CheckerboardCal", "样本不足: ${sampleCount.get()}")
+                return null
+            }
+            objList = objectPointsList.toList()
+            imgList = imagePointsList.toList()
+            objectPointsList.clear()
+            imagePointsList.clear()
         }
 
         val cameraMatrix = Mat.eye(3, 3, CvType.CV_64F)
@@ -138,9 +154,6 @@ class CheckerboardCalibrator(
 
         val imgSize = Size(width.toDouble(), height.toDouble())
 
-        val objList: List<Mat> = objectPointsList.toList()
-        val imgList: List<Mat> = imagePointsList.toList()
-
         val rms = Calib3d.calibrateCamera(
             objList, imgList, imgSize,
             cameraMatrix, distCoeffs, rvecs, tvecs
@@ -149,8 +162,8 @@ class CheckerboardCalibrator(
         // 清理
         rvecs.forEach { it.release() }
         tvecs.forEach { it.release() }
-        objectPointsList.forEach { it.release() }
-        imagePointsList.forEach { it.release() }
+        objList.forEach { it.release() }
+        imgList.forEach { it.release() }
 
         val cm = DoubleArray(9) { cameraMatrix.get(it / 3, it % 3)[0] }
         val dc = DoubleArray(5) { distCoeffs.get(it, 0)[0] }
@@ -177,7 +190,7 @@ class CheckerboardCalibrator(
     /** 获取角点用于可视化 */
     fun getLatestCorners(): MatOfPoint2f? {
         synchronized(this) {
-            return if (imagePointsList.isNotEmpty()) imagePointsList.last().clone() else null
+            return if (imagePointsList.isNotEmpty()) MatOfPoint2f(imagePointsList.last().clone()) else null
         }
     }
 }

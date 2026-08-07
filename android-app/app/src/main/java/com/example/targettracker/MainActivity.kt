@@ -2,6 +2,7 @@ package com.example.targettracker
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -32,7 +33,13 @@ import com.example.targettracker.ui.MainScreen
 import com.example.targettracker.ui.ErrorScreen
 import com.example.targettracker.ui.theme.TargetTrackerTheme
 import org.opencv.android.OpenCVLoader
+import org.opencv.android.Utils
 import org.opencv.core.Mat
+import org.opencv.core.MatOfPoint2f
+import org.opencv.core.Point
+import org.opencv.core.Scalar
+import org.opencv.core.Size
+import org.opencv.imgproc.Imgproc
 import java.util.concurrent.Executors
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -92,6 +99,10 @@ class MainActivity : ComponentActivity() {
     private lateinit var distCoeffs: Mat
     private var useCalibration = false
 
+    // 标定预览图刷新节流 (ms)
+    private val CALIB_PREVIEW_INTERVAL_MS = 100L
+    private var lastCalibPreviewUpdateMs = 0L
+
     // 帧计数
     private var frameCount = 0L
     private var lastFpsTime = System.nanoTime()
@@ -136,6 +147,12 @@ class MainActivity : ComponentActivity() {
     @Volatile private var activeCalibrator: CheckerboardCalibrator? = null
     /** 采样完成待用户确认的结果 */
     private var pendingCalib: CalibrationData? = null
+    /** 本次标定针对的摄像头 id（与 calibrator 绑定） */
+    private var calibTargetCameraId: String = "0"
+    /** 本次标定针对的变焦比（多摄手机的不同物理镜头） */
+    private var calibTargetZoomRatio: Float = 1.0f
+    /** 当前镜头是否已标定的实时状态，供主界面显示 */
+    private val calibExistsState = mutableStateOf(false)
 
     /** 当前摄像头的 Camera2 id, 作为标定存储的键 */
     private fun currentCameraId(): String =
@@ -194,12 +211,42 @@ class MainActivity : ComponentActivity() {
                             },
                             onCalibrate = { openCalibration() },
                             calibUi = calibUiState.value,
-                            calibHasExisting = CalibrationData.load(preferences) != null,
-                            onCalibStart = { cols, rows, sqSize -> startCalibration(cols, rows, sqSize) },
+                            calibHasExisting = calibExistsState.value,
+                            onCalibStart = { cols, rows, sqSize, camId, zoom -> startCalibration(cols, rows, sqSize, camId, zoom) },
                             onCalibCancel = { cancelCalibration() },
                             onCalibAccept = { acceptCalibration() },
                             onCalibRetry = { retryCalibration() },
                             onCalibClear = { clearCalibration() },
+                            onCalibSelectCamera = { idx ->
+                                val id = availableCameras.getOrNull(idx)?.id ?: "0"
+                                val label = availableCameras.getOrNull(idx)?.label ?: ""
+                                val options = if (id == availableCameras.getOrNull(currentCameraIndex)?.id) {
+                                    zoomRatiosState.value
+                                } else {
+                                    // 切换目标摄像头时无法立即知道其变焦档，给一个通用默认值，开始标定时再刷新
+                                    listOf(1.0f)
+                                }
+                                val zoom = options.firstOrNull() ?: 1.0f
+                                // 仅记录目标摄像头，真正切机在"开始标定"时执行，避免弹窗内频繁重启相机
+                                calibUiState.value = calibUiState.value?.copy(
+                                    cameraId = id,
+                                    cameraLabel = label,
+                                    cameraLabels = cameraLabelsState.value,
+                                    zoomRatio = zoom,
+                                    zoomOptions = options,
+                                    calibrated = isCalibrated(id, zoom)
+                                )
+                            },
+                            onCalibSelectZoom = { zoom ->
+                                val cur = calibUiState.value
+                                if (cur != null) {
+                                    calibUiState.value = cur.copy(
+                                        zoomRatio = zoom,
+                                        zoomOptions = zoomRatiosState.value,
+                                        calibrated = isCalibrated(cur.cameraId, zoom)
+                                    )
+                                }
+                            },
                             onReset = {
                                 engine.reset()
                                 state.zeroed = false
@@ -353,6 +400,8 @@ class MainActivity : ComponentActivity() {
         Log.i(TAG, "switchCamera -> $index ${availableCameras[index].label}")
         // 重新绑定相机 (会 unbindAll 后重新 bind)
         startCamera()
+        // 切换到新摄像头后，载入该摄像头当前变焦档已保存的标定
+        applyStoredCalibration(availableCameras[index].id, currentZoomState.value)
     }
 
     /** 由 UI 调用: 切换分辨率 */
@@ -377,22 +426,49 @@ class MainActivity : ComponentActivity() {
         val r = ratio.coerceIn(minZ, maxZ)
         cam.cameraControl.setZoomRatio(r)
         currentZoomState.value = r
-        // 切换变焦档等于换了焦距, 重新套用该档的标定值 (没有则回落默认内参)
-        applyStoredCalibration()
+        // 切换变焦档等于换了物理镜头, 重新套用该档的标定值 (没有则回落默认内参)
+        applyStoredCalibration(currentCameraId(), r)
         Log.i(TAG, "setZoom -> $r")
     }
 
     // ──────────── 棋盘格标定流程 ────────────
 
+    /** 查询某摄像头+变焦档是否已标定 */
+    private fun isCalibrated(cameraId: String, zoomRatio: Float): Boolean {
+        return CalibrationData.load(preferences, cameraId, zoomRatio)?.isValid == true
+    }
+
     /** 打开标定向导 */
     private fun openCalibration() {
         activeCalibrator = null
         pendingCalib = null
-        calibUiState.value = CalibUiState(stage = CalibStage.INPUT)
+        // 记录本次标定针对的摄像头与变焦档（用户可在弹窗内切换）
+        calibTargetCameraId = currentCameraId()
+        calibTargetZoomRatio = currentZoomState.value
+        calibUiState.value = CalibUiState(
+            stage = CalibStage.INPUT,
+            cameraId = calibTargetCameraId,
+            cameraLabel = currentCameraLabel(),
+            cameraLabels = cameraLabelsState.value,
+            zoomRatio = calibTargetZoomRatio,
+            zoomOptions = zoomRatiosState.value,
+            calibrated = isCalibrated(calibTargetCameraId, calibTargetZoomRatio)
+        )
     }
 
     /** 开始采样: 用户已填入棋盘格参数（内角列/行数、每格边长 mm） */
-    private fun startCalibration(gridCols: Int, gridRows: Int, squareSizeMm: Double) {
+    private fun startCalibration(gridCols: Int, gridRows: Int, squareSizeMm: Double, cameraId: String, zoomRatio: Float) {
+        calibTargetCameraId = cameraId
+        calibTargetZoomRatio = zoomRatio
+        // 若目标摄像头与当前不同，先切换（重启相机），检测线程会持续投喂新摄像头帧
+        if (cameraId != currentCameraId()) {
+            val idx = availableCameras.indexOfFirst { it.id == cameraId }.coerceAtLeast(0)
+            switchCamera(idx)
+        }
+        // 切到目标变焦档，确保标定的是该物理镜头
+        if (zoomRatio != currentZoomState.value) {
+            setZoom(zoomRatio)
+        }
         val calibrator = CheckerboardCalibrator(
             patternSize = org.opencv.core.Size(gridCols.toDouble(), gridRows.toDouble()),
             squareSizeMm = squareSizeMm,
@@ -403,10 +479,15 @@ class MainActivity : ComponentActivity() {
             stage = CalibStage.SAMPLING,
             gridCols = gridCols,
             gridRows = gridRows,
-            squareSizeMm = squareSizeMm.toInt().toString(),
-            requiredSamples = calibrator.requiredSamples
+            squareSizeMm = formatDouble(squareSizeMm),
+            requiredSamples = calibrator.requiredSamples,
+            cameraId = cameraId,
+            cameraLabel = availableCameras.getOrNull(currentCameraIndex)?.label ?: "",
+            cameraLabels = cameraLabelsState.value,
+            zoomRatio = zoomRatio,
+            zoomOptions = zoomRatiosState.value
         )
-        Log.i(TAG, "checkerboard calib started: ${gridCols}x${gridRows}, square=${squareSizeMm}mm")
+        Log.i(TAG, "checkerboard calib started: ${gridCols}x${gridRows}, square=${squareSizeMm}mm, camera=$cameraId, zoom=${zoomRatio}x")
     }
 
     /** 取消 / 关闭向导 */
@@ -430,39 +511,53 @@ class MainActivity : ComponentActivity() {
             cancelCalibration()
             return
         }
-        // 棋盘格标定得到完整内参 + 畸变系数，不依赖 zoom level
-        CalibrationData.save(preferences, data)
+        // 棋盘格标定得到完整内参 + 畸变系数，按摄像头 id + 变焦档分别保存
+        CalibrationData.save(preferences, data, calibTargetCameraId, calibTargetZoomRatio)
         calibData = data
         useCalibration = true
         updateCalibrationMats()
         state.calibrationData = calibData
         state.warningMessage = null
+        // 立即刷新主界面"当前镜头已标定"状态条，无需重新切摄像头
+        calibExistsState.value = true
         activeCalibrator = null
         pendingCalib = null
         calibUiState.value = null
         Toast.makeText(this, "棋盘格标定已保存", Toast.LENGTH_SHORT).show()
     }
 
-    /** 清除当前标定 */
+    /** 格式化 Double 为字符串，去掉末尾多余的零 */
+    private fun formatDouble(value: Double): String {
+        return if (value == value.toLong().toDouble()) {
+            value.toLong().toString()
+        } else {
+            value.toString()
+        }
+    }
+
+    /** 清除当前标定（按当前摄像头 id + 变焦档） */
     private fun clearCalibration() {
-        preferences.edit().remove("calibration_data").apply()
+        val id = currentCameraId()
+        val z = currentZoomState.value
+        preferences.edit().remove("calibration_data_${id}_${String.format("%.1f", z)}x").apply()
+        if (id == "0") preferences.edit().remove("calibration_data_${String.format("%.1f", z)}x").apply() // 兼容旧默认键
         calibData = CalibrationData()
         useCalibration = false
         updateCalibrationMats()
         state.calibrationData = calibData
         state.warningMessage = "相机未标定 (使用 Camera2 内参)"
         calibUiState.value = null
-        Toast.makeText(this, "已清除标定", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "已清除 ${currentCameraLabel()} ${String.format("%.1f", z)}x 的标定", Toast.LENGTH_SHORT).show()
     }
 
-    /** 载入已保存的标定值 */
-    private fun applyStoredCalibration() {
-        val stored = CalibrationData.load(preferences)
+    /** 载入已保存的标定值（按摄像头 id + 变焦档） */
+    private fun applyStoredCalibration(cameraId: String = currentCameraId(), zoomRatio: Float = currentZoomState.value) {
+        val stored = CalibrationData.load(preferences, cameraId, zoomRatio)
         if (stored != null && stored.isValid) {
             calibData = stored
             useCalibration = true
             state.warningMessage = null
-            Log.i(TAG, "applied stored checkerboard calib: fx=${stored.fx}")
+            Log.i(TAG, "applied stored checkerboard calib for $cameraId @ ${zoomRatio}x: fx=${stored.fx}")
         } else {
             calibData = CalibrationData()
             useCalibration = false
@@ -470,6 +565,7 @@ class MainActivity : ComponentActivity() {
         }
         if (::cameraMatrix.isInitialized) updateCalibrationMats()
         state.calibrationData = calibData
+        calibExistsState.value = useCalibration
     }
 
     /** SharedPreferences（供 CalibrationData 存储使用） */
@@ -480,53 +576,139 @@ class MainActivity : ComponentActivity() {
     /**
      * 由检测线程调用: 投喂一帧给棋盘格标定器。
      * 使用灰度图进行角点检测，与靶标检测完全独立。
+     * 本函数负责在采样阶段生成带角点标记的预览图，并释放传入的 gray。
      */
     private fun feedCalibration(
         gray: Mat,
         width: Int,
         height: Int
     ) {
-        val calibrator = activeCalibrator ?: return
-        val ok = calibrator.feed(gray, width, height)
-
-        if (calibrator.isComplete) {
-            val result = calibrator.finish(width, height)
-            activeCalibrator = null
-            if (result == null || !result.isValid) {
-                runOnUiThread {
-                    calibUiState.value = CalibUiState(
-                        stage = CalibStage.INPUT,
-                        rejectReason = "标定失败: 样本不足或质量不够"
-                    )
-                }
+        try {
+            val calibrator = activeCalibrator ?: run {
+                gray.release()
                 return
             }
-            pendingCalib = result
-            runOnUiThread {
-                calibUiState.value = CalibUiState(
-                    stage = CalibStage.DONE,
-                    sampleCount = calibrator.requiredSamples,
-                    requiredSamples = calibrator.requiredSamples,
-                    reprojectionError = result.reprojectionError,
-                    fx = result.fx,
-                    fy = result.fy,
-                    cx = result.cx,
-                    cy = result.cy
-                )
+            val ok = calibrator.feed(gray, width, height)
+
+            if (calibrator.isComplete) {
+                // 立即解除标定器占用，让检测线程（及相机帧流水线）立刻恢复
+                activeCalibrator = null
+                // 先在 UI 上标记"正在计算"，避免 calibrateCamera 期间用户误以为卡死
+                runOnUiThread {
+                    val cur = calibUiState.value
+                    if (cur != null && cur.stage == CalibStage.SAMPLING) {
+                        calibUiState.value = cur.copy(
+                            sampleCount = calibrator.requiredSamples,
+                            rejectReason = "正在计算标定参数…"
+                        )
+                    }
+                }
+                // 把较重的 calibrateCamera 放到独立后台线程，不阻塞相机帧流水线
+                Thread {
+                    try {
+                        val result = calibrator.finish(width, height)
+                        runOnUiThread {
+                            if (result == null || !result.isValid) {
+                                calibUiState.value = CalibUiState(
+                                    stage = CalibStage.INPUT,
+                                    rejectReason = "标定失败: 样本不足或质量不够"
+                                )
+                                return@runOnUiThread
+                            }
+                            pendingCalib = result
+                            calibUiState.value = CalibUiState(
+                                stage = CalibStage.DONE,
+                                sampleCount = calibrator.requiredSamples,
+                                requiredSamples = calibrator.requiredSamples,
+                                reprojectionError = result.reprojectionError,
+                                fx = result.fx,
+                                fy = result.fy,
+                                cx = result.cx,
+                                cy = result.cy
+                            )
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "calibrate failed: ${e.message}", e)
+                        runOnUiThread {
+                            calibUiState.value = CalibUiState(
+                                stage = CalibStage.INPUT,
+                                rejectReason = "标定计算异常: ${e.message}"
+                            )
+                        }
+                    }
+                }.apply { name = "CalibCompute"; priority = Thread.MAX_PRIORITY }.start()
+                return
             }
-        } else {
+
             val n = calibrator.sampleCountValue
             val reason = calibrator.lastRejectReason()
+
+            // 生成标定预览图，节流避免频繁创建 Bitmap
+            val now = System.currentTimeMillis()
+            var preview: Bitmap? = null
+            if (now - lastCalibPreviewUpdateMs >= CALIB_PREVIEW_INTERVAL_MS) {
+                lastCalibPreviewUpdateMs = now
+                val corners = if (ok) calibrator.getLatestCorners() else null
+                preview = createCalibPreviewBitmap(gray, corners, maxWidth = 360)
+                corners?.release()
+            }
+
+            val finalPreview = preview
             runOnUiThread {
                 val cur = calibUiState.value
                 if (cur != null && cur.stage == CalibStage.SAMPLING) {
+                    // 回收上一帧的预览 Bitmap，避免 native 内存泄漏导致卡顿/OOM
+                    val old = cur.previewBitmap
+                    val nextPreview = finalPreview ?: old
+                    if (finalPreview != null && old != null && old != finalPreview) {
+                        old.recycle()
+                    }
                     calibUiState.value = cur.copy(
                         sampleCount = n,
-                        rejectReason = if (!ok) reason else null
+                        rejectReason = if (!ok) reason else null,
+                        previewBitmap = nextPreview
                     )
+                } else {
+                    // 已不在采样阶段，直接回收新生成的预览
+                    finalPreview?.recycle()
                 }
             }
+        } finally {
+            // 本函数全权拥有传入的 gray，无论走哪条分支都必须释放
+            gray.release()
         }
+    }
+
+    /**
+     * 生成标定预览 Bitmap。
+     * 将灰度图缩放后转 RGBA，并在检测到的角点处绘制红色圆点。
+     */
+    private fun createCalibPreviewBitmap(
+        gray: Mat,
+        corners: MatOfPoint2f?,
+        maxWidth: Int = 360
+    ): Bitmap {
+        val scale = (maxWidth.toDouble() / gray.width()).coerceAtMost(1.0)
+        val newW = (gray.width() * scale).toInt()
+        val newH = (gray.height() * scale).toInt()
+
+        val resized = Mat()
+        Imgproc.resize(gray, resized, Size(newW.toDouble(), newH.toDouble()))
+
+        val rgba = Mat()
+        Imgproc.cvtColor(resized, rgba, Imgproc.COLOR_GRAY2RGBA)
+        resized.release()
+
+        corners?.toArray()?.forEach { p ->
+            val sx = p.x * scale
+            val sy = p.y * scale
+            Imgproc.circle(rgba, Point(sx, sy), 3, Scalar(255.0, 0.0, 0.0, 255.0), -1)
+        }
+
+        val bmp = Bitmap.createBitmap(newW, newH, Bitmap.Config.ARGB_8888)
+        Utils.matToBitmap(rgba, bmp)
+        rgba.release()
+        return bmp
     }
     private fun startCameraWithPreview(pv: PreviewView) {
         if (!checkCameraPermission()) return

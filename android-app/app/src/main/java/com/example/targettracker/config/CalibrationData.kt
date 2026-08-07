@@ -69,14 +69,22 @@ data class CalibrationData(
             )
         }
 
-        fun save(prefs: SharedPreferences, data: CalibrationData) {
+        /** 生成按摄像头+变焦档的存储键。变焦比保留一位小数，避免浮点 key 不一致。 */
+        private fun keyFor(cameraId: String, zoomRatio: Float): String {
+            val z = String.format("%.1f", zoomRatio)
+            return if (cameraId == "default") "calibration_data_${z}x" else "calibration_data_${cameraId}_${z}x"
+        }
+
+        fun save(prefs: SharedPreferences, data: CalibrationData, cameraId: String = "default", zoomRatio: Float = 1.0f) {
+            val key = keyFor(cameraId, zoomRatio)
             prefs.edit()
-                .putString("calibration_data", data.toJson().toString())
+                .putString(key, data.toJson().toString())
                 .apply()
         }
 
-        fun load(prefs: SharedPreferences): CalibrationData? {
-            val jsonStr = prefs.getString("calibration_data", null) ?: return null
+        fun load(prefs: SharedPreferences, cameraId: String = "default", zoomRatio: Float = 1.0f): CalibrationData? {
+            val key = keyFor(cameraId, zoomRatio)
+            val jsonStr = prefs.getString(key, null) ?: return null
             return try {
                 fromJson(JSONObject(jsonStr))
             } catch (_: Exception) {
