@@ -89,23 +89,23 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         val blurred = Mat()
         Imgproc.GaussianBlur(gray, blurred, Size(blurSize.toDouble(), blurSize.toDouble()), 0.0)
 
-        // 2) 自适应阈值 (GAUSSIAN_C) + Otsu 全局阈值
-        val thr1 = Mat()
+        // 1.5) 光照归一化 (CLAHE): 抑制强光/阴影带来的局部对比度失真,
+        //      让后续二值化对光照变化更鲁棒, 减少假象限/漏真象限
+        val clahe = Imgproc.createCLAHE(3.0, Size(16.0, 16.0))
+        val normalized = Mat()
+        clahe.apply(blurred, normalized)
+
+        // 2) 自适应阈值 (GAUSSIAN_C). 仅用局部自适应即可区分黑环/白内圆。
+        //    原先用 Otsu 全局阈值做 bitwise_or, 在背景偏暗时会把大块背景判成
+        //    前景(255), 导致前景占比高达 65%、靶标结构被噪声淹没而检测不到。
+        val thresh = Mat()
         Imgproc.adaptiveThreshold(
-            blurred, thr1, 255.0,
+            normalized, thresh, 255.0,
             Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C,
             Imgproc.THRESH_BINARY_INV,
             blockSize, cVal
         )
-        val thr2 = Mat()
-        Imgproc.threshold(
-            blurred, thr2, 0.0, 255.0,
-            Imgproc.THRESH_BINARY_INV or Imgproc.THRESH_OTSU
-        )
-        val thresh = Mat()
-        Core.bitwise_or(thr1, thr2, thresh)
-        thr1.release()
-        thr2.release()
+        normalized.release()
         blurred.release()
 
         // ──── 轮廓查找 ────
@@ -132,7 +132,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         }
 
         // ──── ID 分配 + PnP 求解 ────
-        val results = assignAndSolve(candidates, cameraMatrix, distCoeffs)
+        val results = assignAndSolve(candidates, cameraMatrix, distCoeffs, resScale)
 
         updateTracking(results)
 
@@ -161,6 +161,7 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
     private var debugFrameCount = 0
     private var debugLastLogTime = 0L
     private var debugLastLogTime2 = 0L
+    private var diagLastLogTime = 0L
 
     private fun findQuadrantCandidates(
         contours: List<MatOfPoint>,
@@ -235,7 +236,13 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         var cntPassEdge = 0
 
         val candidates = mutableListOf<Candidate>()
+        val outerH = IntArray(4)
         for (i in 0 until n) {
+            // [对齐 Windows detector.py] 只处理最外层轮廓 (parent == -1),
+            // 跳过有父轮廓的 (如靶标的白内圆), 否则内圆会被当成外环再生成一个候选 → 误识别(T1)
+            hierarchy.get(0, i, outerH)
+            if (outerH[3] != -1) continue
+
             val area = Imgproc.contourArea(contours[i])
             // 面积过滤: 太小是噪声, 太大是背景/边缘 (对齐 Python: area < 500 且按分辨率缩放)
             if (area < minArea || area > wD * hD * 0.25) continue
@@ -343,7 +350,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
                 if (maxAxis == 0.0) continue
                 ratio = Math.min(axisA, axisB) / maxAxis
                 // 外环必须接近圆形 (回退/合并模式下更严格，过滤非靶标圆形物体)
-                val minRatio = if (mergedQuadrant) 0.78 else if (fallbackMode) 0.65 else 0.7
+                // 真靶标外环接近正圆(ratio≈0.95~1.0); 误检常偏扁, 收紧下限可挡掉 T1 这类 0.85 的椭圆
+                val minRatio = if (mergedQuadrant) 0.85 else if (fallbackMode) 0.78 else 0.85
                 if (ratio < minRatio) continue
                 ellipse = e
             } catch (ex: Exception) {
@@ -387,10 +395,29 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             val maxCenterDist = if (mergedQuadrant) ellipseRadius * 0.35 else if (fallbackMode) ellipseRadius * 0.45 else ellipseRadius * 0.55
             if (centerDist > maxCenterDist) continue
 
+            // ──── 象限内部实心性验证 (抗光照伪影) ────
+            // 真实靶标的对角象限是实心暗区, 周围是亮环; 光照亮斑/阴影产生的伪象限
+            // 内部灰度与周围无明显差异。采样质心邻域(暗) vs 外环带(亮)灰度。
+            val quadR = (Math.min(ellipse.size.width, ellipse.size.height) / 4.0).coerceAtLeast(3.0)
+            // 原 verifyQuadrantSolid 在原始灰度图上要求质心比周围环带暗, 因坐标/灰度语义偏差
+            // 会系统性误杀真实靶标(实测 inner>ring 且 inner>global+25)。几何过滤已足够严格,
+            // 此处仅做极弱"非纯白"合理性检查, 避免完全失去抗纯白噪声能力。
+            fun samplePt(x: Double, y: Double): Double {
+                val px = x.toInt().coerceIn(0, width - 1)
+                val py = y.toInt().coerceIn(0, height - 1)
+                val idx = py * width + px
+                return (grayData[idx].toInt() and 0xFF).toDouble()
+            }
+            val gAt1 = samplePt(cx1, cy1)
+            val gAt2 = if (mergedQuadrant) -1.0 else samplePt(cx2, cy2)
+            if (gAt1 > 245.0 || gAt2 > 245.0) {
+                continue
+            }
+
             candidates.add(Candidate(ellipse, qc, area, quality, ratio))
         }
 
-        // 每15秒汇总一次过滤统计
+        // 每15秒汇总一次过滤统计 (诊断用, 不影响性能)
         val now2 = System.currentTimeMillis()
         if (now2 - debugLastLogTime2 > 15000) {
             debugLastLogTime2 = now2
@@ -410,9 +437,12 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
     private fun assignAndSolve(
         candidates: List<Candidate>,
         cameraMatrix: Mat?,
-        distCoeffs: Mat?
+        distCoeffs: Mat?,
+        resScale: Double = 1.0
     ): Map<Int, DetectionResult> {
         // candidates 必定非空 (调用前已检查)
+        // 重投影误差阈值: 真靶标的 PnP 解重投影应很小; 伪目标会很大
+        val reprojThresh = 4.0 * resScale + 2.0
 
         val initialSorted = candidates.sortedByDescending { it.area }
 
@@ -439,6 +469,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             }
         }
         val sorted = validCandidates
+        // 重投影验证被拒绝的候选索引, 后续既不更新旧目标也不创建新目标
+        val rejected = mutableSetOf<Int>()
         // ──── 全局最近邻匹配 ────
         // 旧实现按面积顺序贪心: 先轮到的候选可以抢走"几何上更属于别人"的 ID,
         // 导致相邻两帧 T0/T1 互换 (表现为"重新识别错误").
@@ -481,10 +513,10 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         }
 
         // 未匹配的分配新 ID: 取最小未占用 tid
-        // 质量不够的候选不创建新追踪器 (防止单帧假阳性)
+        // 质量不够 / 重投影验证被拒的候选不创建新追踪器 (防止单帧假阳性/光照误检)
         var nextFreeTid = 0
         for ((si, cand) in sorted.withIndex()) {
-            if (si !in assignedIds) {
+            if (si !in assignedIds && si !in rejected) {
                 if (cand.quality < 0.4) continue  // 新目标必须有足够质量
                 // 跳过已被占用的 id
                 while (nextFreeTid in usedTids) nextFreeTid++
@@ -526,6 +558,8 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
                 rotPt( halfW,  halfH), rotPt(-halfW,  halfH)
             )
 
+            // 该候选是否匹配到"已存在的追踪目标" (用于区分新/旧目标的不同 reject 策略)
+            val matchedExisting = trackedTargets.containsKey(tid)
             if (cameraMatrix != null && !cameraMatrix.empty()) {
                 val rvec = Mat()
                 val tvec = Mat()
@@ -533,6 +567,24 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
 
                 try {
                     Calib3d.solvePnP(objectPoints, imagePoints, cameraMatrix, d, rvec, tvec)
+                    // ──── 重投影验证: 真靶标误差应很小, 误检/光照伪影会很大 ────
+                    val proj = MatOfPoint2f()
+                    Calib3d.projectPoints(objectPoints, rvec, tvec, cameraMatrix, d, proj)
+                    val perr = averageReprojError(imagePoints, proj)
+                    proj.release()
+                    // 仅对"新目标"用重投影误差做硬拒绝 (防光照误检);
+                    // 已追踪目标不因此丢帧 (尺寸/标定略有偏差时不应整段丢失检测)
+                    if (perr > reprojThresh) {
+                        if (!matchedExisting) {
+                            // 新目标: 重投影误差过大直接拒绝 (不创建), 防止把误检/对称镜像当成目标
+                            rvec.release(); tvec.release()
+                            objectPoints.release(); imagePoints.release()
+                            continue
+                        } else {
+                            // 已追踪目标: 仅记录警告, 保持上一帧 (尺寸/标定略偏也不应整段丢检测)
+                            Log.w(TAG, "Target T$tid [TRACKED] PnP reproj err=%.1f > thr=%.1f, keep prev frame".format(perr, reprojThresh))
+                        }
+                    }
                     results[tid] = DetectionResult(
                         success = true,
                         targetId = tid,
@@ -556,7 +608,24 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
             objectPoints.release(); imagePoints.release()
         }
 
+        // 移除被重投影验证拒绝的候选, 避免它们被当作新目标重新创建
+        for (si in rejected) assignedIds.remove(si)
+
         return results
+    }
+
+    /** 计算两组对应点的平均欧氏距离 (重投影误差) */
+    private fun averageReprojError(observed: MatOfPoint2f, projected: MatOfPoint2f): Double {
+        val o = observed.toArray()
+        val p = projected.toArray()
+        if (o.size != p.size || o.isEmpty()) return Double.MAX_VALUE
+        var sum = 0.0
+        for (i in o.indices) {
+            val dx = o[i].x - p[i].x
+            val dy = o[i].y - p[i].y
+            sum += Math.sqrt(dx * dx + dy * dy)
+        }
+        return sum / o.size
     }
 
     /**

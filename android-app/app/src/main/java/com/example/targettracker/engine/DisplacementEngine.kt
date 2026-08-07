@@ -18,9 +18,9 @@ import kotlin.math.abs
 class DisplacementEngine(private val measureConfig: Config.Measure = Config.measure) {
 
     data class TargetState(
-        var kfX: SimpleKalmanFilter = SimpleKalmanFilter(),
-        var kfY: SimpleKalmanFilter = SimpleKalmanFilter(),
-        var kfZ: SimpleKalmanFilter = SimpleKalmanFilter(),
+        var kfX: SimpleKalmanFilter = SimpleKalmanFilter(Config.kalman.processNoiseQ, Config.kalman.measurementNoiseR),
+        var kfY: SimpleKalmanFilter = SimpleKalmanFilter(Config.kalman.processNoiseQ, Config.kalman.measurementNoiseR),
+        var kfZ: SimpleKalmanFilter = SimpleKalmanFilter(Config.kalman.processNoiseQ, Config.kalman.measurementNoiseR),
         // 滑动平均
         var maWindowX: MutableList<Double> = mutableListOf(),
         var maWindowY: MutableList<Double> = mutableListOf(),
@@ -107,25 +107,17 @@ class DisplacementEngine(private val measureConfig: Config.Measure = Config.meas
                 filteredY = state.kfY.update(Double.NaN)
                 filteredZ = state.kfZ.update(Double.NaN)
             } else {
-                // 动态R: 大创新减小R快速跟踪
-                val innovX = abs(rawX - state.kfX.position)
-                if (innovX > outlierThreshold * 0.5) {
-                    state.kfX.setR(0.1)
-                } else {
-                    state.kfX.setR(0.5)
-                }
+                // 恒定较小 R: 提升对真实小位移的跟随灵敏度 (大跳变已被异常检测拦截)
                 filteredX = state.kfX.update(rawX)
                 filteredY = state.kfY.update(rawY)
                 filteredZ = state.kfZ.update(rawZ)
             }
 
-            // ──── 自适应死区 ────
-            val kfPos = state.kfX.position; val kfPrev = state.prevXMm
-            val finalX = if (state.globalZeroed && abs(kfPos - kfPrev) < deadZone) kfPrev else filteredX
-            val kfPosY = state.kfY.position; val kfPrevY = state.prevYMm
-            val finalY = if (state.globalZeroed && abs(kfPosY - kfPrevY) < deadZone) kfPrevY else filteredY
-            val kfPosZ = state.kfZ.position; val kfPrevZ = state.prevZMm
-            val finalZ = if (state.globalZeroed && abs(kfPosZ - kfPrevZ) < deadZone) kfPrevZ else filteredZ
+            // ──── 自适应死区 (基准: 相对零位) ────
+            // 仅抑制零位附近的静止抖动, 不冻结相对前一帧的增量, 让持续小位移能累积显示
+            val finalX = if (state.globalZeroed && abs(filteredX - state.zeroX) < deadZone) state.zeroX else filteredX
+            val finalY = if (state.globalZeroed && abs(filteredY - state.zeroY) < deadZone) state.zeroY else filteredY
+            val finalZ = if (state.globalZeroed && abs(filteredZ - state.zeroZ) < deadZone) state.zeroZ else filteredZ
 
             // ──── 更新滑动平均 ────
             state.maWindowX.add(finalX); if (state.maWindowX.size > windowSize) state.maWindowX.removeAt(0)

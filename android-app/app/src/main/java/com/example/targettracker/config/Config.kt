@@ -15,17 +15,21 @@ object Config {
 
     // ---------- 测量 ----------
     data class Measure(
-        val deadZoneMm: Double = 0.3,
+        // 死区: 仅用于抑制零位附近的静止抖动, 基准改为"相对零位"而非"相对前一帧",
+        // 否则持续小位移会被反复冻结。调小以提高小位移灵敏度。
+        val deadZoneMm: Double = 0.1,
         val outlierThresholdMm: Double = 50.0,
         val maxConsecutiveOutliers: Int = 10,
-        val slidingWindowSize: Int = 5,
-        val dynamicRFactor: Double = 0.5
+        // 滑动窗口减小, 降低迟滞
+        val slidingWindowSize: Int = 3,
+        val dynamicRFactor: Double = 0.15
     )
 
     // ---------- 卡尔曼滤波器 ----------
     data class Kalman(
-        val processNoiseQ: Double = 0.01,
-        val measurementNoiseR: Double = 0.5,
+        // 过程噪声增大 + 测量噪声减小 => 滤波器更"信任测量", 小位移更跟手
+        val processNoiseQ: Double = 0.05,
+        val measurementNoiseR: Double = 0.15,
         val initialEstimateP: Double = 1.0
     )
 
