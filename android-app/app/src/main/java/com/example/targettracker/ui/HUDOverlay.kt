@@ -52,7 +52,8 @@ fun HUDOverlay(
             onToggle = { expanded = !expanded },
             targetIds = targetIds,
             selectedId = selectedId,
-            onSelectTarget = onSelectTarget
+            onSelectTarget = onSelectTarget,
+            targetSizes = state.targetSizes
         )
     }
 }
@@ -66,7 +67,8 @@ private fun DisplacementPanel(
     onToggle: () -> Unit,
     targetIds: List<Int> = emptyList(),
     selectedId: Int? = null,
-    onSelectTarget: (Int) -> Unit = {}
+    onSelectTarget: (Int) -> Unit = {},
+    targetSizes: Map<Int, Double> = emptyMap()
 ) {
     val cardBase = Modifier
         .shadow(14.dp, RoundedCornerShape(14.dp))
@@ -95,6 +97,10 @@ private fun DisplacementPanel(
                 Text("X %.1f".format(disp.xMm), style = MaterialTheme.typography.labelSmall, color = HudWhite)
                 Text("Y %.1f".format(disp.yMm), style = MaterialTheme.typography.labelSmall, color = HudWhite)
                 Text("Z %.1f".format(disp.zMm), style = MaterialTheme.typography.labelSmall, color = HudCyan)
+                // 常驻显示靶标尺寸
+                selectedId?.let { tid -> targetSizes[tid]?.let { mm ->
+                    Text("∅%.0fmm".format(mm), style = MaterialTheme.typography.labelSmall, color = HudGray)
+                } }
             } else {
                 Text("无靶标", style = MaterialTheme.typography.labelSmall, color = HudRed)
             }
@@ -139,6 +145,10 @@ private fun DisplacementPanel(
             Text(if (selectedId != null) "位移 #$selectedId" else "位移",
                 style = MaterialTheme.typography.labelMedium, color = HudCyan,
                 modifier = Modifier.weight(1f))
+            // 常驻显示靶标实际尺寸
+            selectedId?.let { tid -> targetSizes[tid]?.let { mm ->
+                Text("∅%.0f mm".format(mm), style = MaterialTheme.typography.labelSmall, color = HudGray)
+            } }
             Icon(Icons.Filled.ExpandMore, "收起", tint = HudGray, modifier = Modifier.size(16.dp))
         }
         Spacer(Modifier.height(4.dp))

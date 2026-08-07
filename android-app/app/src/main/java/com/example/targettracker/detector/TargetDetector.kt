@@ -703,6 +703,9 @@ class TargetDetector(private val targetConfig: Config.Target = Config.target) {
         targetSizes[targetId] = sizeMm
     }
 
+    /** 获取某靶标的实际尺寸(mm)，未设置返回 null */
+    fun getTargetSize(targetId: Int): Double? = targetSizes[targetId]
+
     data class Candidate(
         val ellipse: RotatedRect,
         val quadCenters: Array<Point>,

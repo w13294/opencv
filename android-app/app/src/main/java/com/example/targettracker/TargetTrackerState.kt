@@ -35,6 +35,12 @@ class TargetTrackerState {
     // 告警
     var warningMessage: String? by mutableStateOf(null)
 
+    // 靶标尺寸告警 (未设置实际尺寸时提示)
+    var targetSizeWarning: String? by mutableStateOf(null)
+
+    // 各靶标实际尺寸(mm)，供 HUD 常驻显示 (tid -> mm)
+    var targetSizes: Map<Int, Double> by mutableStateOf(emptyMap())
+
     // 当前选中的靶标 ID (多靶标时用户可切换, null=自动选第一个)
     var selectedTargetId: Int? by mutableStateOf(null)
 

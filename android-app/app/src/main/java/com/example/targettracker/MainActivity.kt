@@ -154,6 +154,10 @@ class MainActivity : ComponentActivity() {
     /** 当前镜头是否已标定的实时状态，供主界面显示 */
     private val calibExistsState = mutableStateOf(false)
 
+    // ──── 靶标尺寸持久化 ────
+    /** 用户曾主动设置过尺寸的靶标 id 集合 (用于"未设置尺寸"提醒) */
+    private val userSetTargetSizes = mutableSetOf<Int>()
+
     /** 当前摄像头的 Camera2 id, 作为标定存储的键 */
     private fun currentCameraId(): String =
         availableCameras.getOrNull(currentCameraIndex)?.id ?: "0"
@@ -186,6 +190,22 @@ class MainActivity : ComponentActivity() {
             // 初始化标定 Mat (必须在 native 库加载之后)
             updateCalibrationMats()
 
+            // 恢复用户设置过的靶标尺寸 (持久化)
+            val saved = preferences.getStringSet("target_sizes_user_set", emptySet()) ?: emptySet()
+            userSetTargetSizes.clear()
+            val restored = mutableMapOf<Int, Double>()
+            for (s in saved) {
+                val tid = s.toIntOrNull() ?: continue
+                userSetTargetSizes.add(tid)
+                val mm = preferences.getFloat("target_size_mm_$tid", 0f)
+                if (mm > 0f) {
+                    detector.setTargetSize(tid, mm.toDouble())
+                    restored[tid] = mm.toDouble()
+                }
+            }
+            state.targetSizes = restored
+            updateTargetSizeWarning()
+
             setContent {
                 TargetTrackerTheme {
                     if (opencvOk) {
@@ -212,6 +232,7 @@ class MainActivity : ComponentActivity() {
                             onCalibrate = { openCalibration() },
                             calibUi = calibUiState.value,
                             calibHasExisting = calibExistsState.value,
+                            targetSizeWarning = state.targetSizeWarning,
                             onCalibStart = { cols, rows, sqSize, camId, zoom -> startCalibration(cols, rows, sqSize, camId, zoom) },
                             onCalibCancel = { cancelCalibration() },
                             onCalibAccept = { acceptCalibration() },
@@ -251,7 +272,19 @@ class MainActivity : ComponentActivity() {
                                 engine.reset()
                                 state.zeroed = false
                             },
-                            onSetTargetSize = { tid, mm -> detector.setTargetSize(tid, mm) },
+                            onSetTargetSize = { tid, mm ->
+                                detector.setTargetSize(tid, mm)
+                                // 同步到 state 供 HUD 显示
+                                state.targetSizes = state.targetSizes.toMutableMap().apply { put(tid, mm) }
+                                // 持久化用户设置记录
+                                userSetTargetSizes.add(tid)
+                                preferences.edit()
+                                    .putStringSet("target_sizes_user_set", userSetTargetSizes.map { it.toString() }.toSet())
+                                    .putFloat("target_size_mm_$tid", mm.toFloat())
+                                    .apply()
+                                updateTargetSizeWarning()
+                                Toast.makeText(this, "靶标 T$tid 尺寸已设为 ${mm}mm", Toast.LENGTH_SHORT).show()
+                            },
                             resolutionLabels = resolutionLabels,
                             currentResolutionIndex = state.resolutionIndex,
                             onSetResolution = { idx -> setResolution(idx) }
@@ -566,6 +599,17 @@ class MainActivity : ComponentActivity() {
         if (::cameraMatrix.isInitialized) updateCalibrationMats()
         state.calibrationData = calibData
         calibExistsState.value = useCalibration
+    }
+
+    /** 刷新"靶标尺寸未设置"告警: 当存在被追踪的靶标但其尺寸从未被用户确认时提示 */
+    private fun updateTargetSizeWarning() {
+        val activeTids = state.detectResults.keys
+        val missing = activeTids.firstOrNull { !userSetTargetSizes.contains(it) }
+        state.targetSizeWarning = if (missing != null) {
+            "⚠ 靶标 T$missing 未设置实际尺寸，位移可能不准确"
+        } else {
+            null
+        }
     }
 
     /** SharedPreferences（供 CalibrationData 存储使用） */
@@ -904,6 +948,7 @@ class MainActivity : ComponentActivity() {
                         state.imageSize = job.grayW to job.grayH
                         state.frameNum++
                         state.stats = engine.getStats()
+                        updateTargetSizeWarning()
                     }
                 } finally {
                     // 释放深拷贝的 Mat 资源 (无论检测成功与否)
