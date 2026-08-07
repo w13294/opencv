@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Bundle
 import android.util.Log
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -178,6 +179,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         try {
             super.onCreate(savedInstanceState)
+
+            // 阻止屏幕休眠，保持常亮
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
             // OpenCV native 库由 AppApplication.onCreate 中的 System.loadLibrary 加载
             // 4.x 官方 AAR 的 initLocal() 不再执行加载, 故直接检查加载结果
